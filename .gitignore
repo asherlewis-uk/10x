@@ -1,0 +1,45 @@
+# Xcode
+xcuserdata/
+*.xcscmblueprint
+DerivedData/
+.derivedData/
+build/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xccheckout
+*.xcworkspace
+!default.xcworkspace
+
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Local previews and generated release-site artifacts
+output/
+.vercel
+
+.build-codex-integrations-core
