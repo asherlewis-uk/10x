@@ -466,23 +466,12 @@ extension BuilderViewModel {
         projectName: String?,
         accessToken: String
     ) async {
+        // 11x local cockpit: hosted chat-title backend endpoint is disabled.
+        _ = chatId
+        _ = userQuery
+        _ = projectName
+        _ = accessToken
         defer { titleRequestsInFlight.remove(chatId) }
-
-        do {
-            var payload: [String: Any] = ["user_query": userQuery]
-            if let projectName, !projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                payload["project_name"] = projectName
-            }
-
-            let response: ChatTitleResponse = try await apiClient.post(
-                APIClient.builder("chat-title"),
-                json: payload,
-                accessToken: accessToken
-            )
-            await applyGeneratedChatTitle(response.title, to: chatId)
-        } catch {
-            print("Failed to generate chat title: \(error)")
-        }
     }
 
     func applyGeneratedChatTitle(_ rawTitle: String, to chatId: String) async {

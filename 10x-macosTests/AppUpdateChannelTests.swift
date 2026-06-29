@@ -38,26 +38,17 @@ final class AppUpdateChannelTests: XCTestCase {
         )
     }
 
-    func testBrowserReleaseNotesURLDropsHtmlExtensionForChannelReleaseNotes() {
+    func testBrowserReleaseNotesURLReturnsNilForVendorFeedsInLocalCockpit() {
         let betaURL = URL(string: "https://downloads.example.invalid/beta/release-notes/1.0.0-beta.22.html")
         let stableURL = URL(string: "https://downloads.example.invalid/stable/release-notes/1.0.0.html")
 
-        XCTAssertEqual(
-            AppUpdateChannel.browserReleaseNotesURL(from: betaURL)?.absoluteString,
-            "https://downloads.example.invalid/beta/release-notes/1.0.0-beta.22"
-        )
-        XCTAssertEqual(
-            AppUpdateChannel.browserReleaseNotesURL(from: stableURL)?.absoluteString,
-            "https://downloads.example.invalid/stable/release-notes/1.0.0"
-        )
+        XCTAssertNil(AppUpdateChannel.browserReleaseNotesURL(from: betaURL))
+        XCTAssertNil(AppUpdateChannel.browserReleaseNotesURL(from: stableURL))
     }
 
-    func testBrowserReleaseNotesURLLeavesUnrelatedURLsUnchanged() {
+    func testBrowserReleaseNotesURLReturnsNilForUnrelatedURLsInLocalCockpit() {
         let unrelatedURL = URL(string: "https://downloads.example.invalid/changelog/latest.html")
 
-        XCTAssertEqual(
-            AppUpdateChannel.browserReleaseNotesURL(from: unrelatedURL)?.absoluteString,
-            unrelatedURL?.absoluteString
-        )
+        XCTAssertNil(AppUpdateChannel.browserReleaseNotesURL(from: unrelatedURL))
     }
 }

@@ -199,8 +199,36 @@ final class AppStoreSubmissionTests: XCTestCase {
 
         let blockers = draft.publishBlockers()
 
+        XCTAssertTrue(blockers.contains("Hosted publishing is not available in 11x. Use local export instead."))
         XCTAssertTrue(blockers.contains("Generate privacy, terms, and support drafts before publishing."))
         XCTAssertTrue(blockers.contains("Add a support email before publishing."))
         XCTAssertTrue(blockers.contains("Confirm the support contact details before publishing."))
+    }
+
+    func testHostedURLIsAlwaysNilInLocalCockpit() {
+        let draft = AppStoreSubmissionDraft(
+            facts: AppStoreSubmissionFacts(appName: "Atlas"),
+            publish: AppStoreSubmissionPublishState(publicSlug: "atlas")
+        )
+
+        XCTAssertNil(draft.hostedURL(baseURL: "https://apps.example.invalid", kind: "privacy"))
+        XCTAssertNil(draft.hostedURL(baseURL: "https://apps.example.invalid", kind: "terms"))
+        XCTAssertNil(draft.hostedURL(baseURL: "https://apps.example.invalid", kind: "support"))
+    }
+
+    func testPublishBlockersAlwaysIncludeLocalModeMessage() {
+        let draft = AppStoreSubmissionDraft(
+            facts: AppStoreSubmissionFacts(appName: "Atlas", supportEmail: "support@example.com"),
+            generated: AppStoreSubmissionGenerated(
+                privacy: AppStoreGeneratedDocument(title: "Privacy", intro: [], sections: []),
+                terms: AppStoreGeneratedDocument(title: "Terms", intro: [], sections: []),
+                support: AppStoreGeneratedDocument(title: "Support", intro: [], sections: [])
+            ),
+            confirmations: AppStoreSubmissionConfirmations(confirmedFields: ["support_contact": true]),
+            publish: AppStoreSubmissionPublishState(publicSlug: "atlas")
+        )
+
+        let blockers = draft.publishBlockers()
+        XCTAssertTrue(blockers.contains("Hosted publishing is not available in 11x. Use local export instead."))
     }
 }

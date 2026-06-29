@@ -66,23 +66,8 @@ enum AppUpdateChannel: String, CaseIterable, Identifiable {
     }
 
     static func browserReleaseNotesURL(from url: URL?) -> URL? {
-        guard
-            let url,
-            url.pathExtension.caseInsensitiveCompare("html") == .orderedSame,
-            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        else {
-            return url
-        }
-
-        let path = components.path
-        let isChannelReleaseNotesPath =
-            path.contains("/stable/release-notes/") || path.contains("/beta/release-notes/")
-
-        guard isChannelReleaseNotesPath else {
-            return url
-        }
-
-        components.path = (path as NSString).deletingPathExtension
-        return components.url ?? url
+        // 11x local cockpit: release notes URLs are tied to vendor updater feeds.
+        // Return nil so the UI does not expose an external release-notes link.
+        return nil
     }
 }

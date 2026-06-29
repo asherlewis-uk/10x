@@ -1263,3 +1263,80 @@ Remaining vendor-provider runtime assumptions not removed in Pass 06:
 - 19 files changed, 1407 insertions(+), 213 deletions(-)
 - `git diff --check` passed before commit.
 - No push performed.
+
+## Pass 07 — Hosted Vendor Feature Removal
+
+### Pass Scope And Evidence
+
+Pass executed: Pass 07 only, hosted/vendor feature removal.
+
+Runtime behavior changed:
+
+- Hosted App Store legal page publishing is now blocked with a local-mode message.
+- App Store review icon generation no longer calls vendor backend endpoints (`claude/stream` or `openai/images/generate`).
+- Generated chat title requests no longer call the vendor `chat-title` backend endpoint.
+- Sparkle updater coordinator does not start checking when no vendor feed URL is configured.
+- Release-notes browser URLs are suppressed for vendor updater feeds.
+- Review/Production UI copy no longer presents Supabase, managed-backend, or hosted-page paths as available.
+
+Files created:
+
+- `10x-macosTests/HostedVendorRemovalTests.swift`
+
+Files modified:
+
+- `10x-macos/Config.swift`
+- `10x-macos/Configuration/Development.xcconfig`
+- `10x-macos/Configuration/Production.xcconfig`
+- `10x-macos/Models/AppStoreSubmission.swift`
+- `10x-macos/Services/AppUpdateChannel.swift`
+- `10x-macos/SparkleUpdater.swift`
+- `10x-macos/ViewModels/BuilderViewModel+AppStoreSubmission.swift`
+- `10x-macos/ViewModels/BuilderViewModel+Chats.swift`
+- `10x-macos/ViewModels/BuilderViewModel+Review.swift`
+- `10x-macos/Views/Preview/ProductionView.swift`
+- `10x-macos/Views/Preview/ReviewView.swift`
+- `10x-macosTests/AppStoreSubmissionTests.swift`
+- `10x-macosTests/AppUpdateChannelTests.swift`
+- `AGENTS.md`
+- `CLAUDE.md`
+
+### Inventory Findings
+
+Hosted/vendor surfaces inventoried and disabled/replaced:
+
+- `BuilderViewModel.publishAppStoreSubmission()` → returns local-mode error, no `supabase.savePublishedAppStorePage` call.
+- `BuilderViewModel.unpublishAppStoreSubmission()` → returns local-mode error, no `supabase.unpublishAppStorePage` call.
+- `BuilderViewModel.requestAppStoreSubmissionGeneration(...)` → throws local-mode error, no `APIClient.builder("claude/stream")` call.
+- `BuilderViewModel.generateReviewIconAsset(...)` → returns local-mode warning, no `APIClient.builder("openai/images/generate")` or `generateReviewIconPlan` backend call.
+- `BuilderViewModel.generateReviewIconPlan(...)` → throws local-mode error, no `APIClient.builder("claude/stream")` call.
+- `BuilderViewModel.requestGeneratedChatTitle(...)` → no-op, no `APIClient.builder("chat-title")` call.
+- `ReviewView` → Publish/Update Live/Unpublish buttons replaced with local-mode notes; Hosted Pages panels replaced with local-mode notes.
+- `ProductionView` → production flow copy now describes local SQLite/keychain path; provider comparison subtitle and tags note local cockpit only.
+- `AppUpdateChannel.browserReleaseNotesURL(from:)` → returns `nil` for all inputs.
+- `SparkleUpdaterCoordinator` → skips activation when `Config.sparkleFeedURL` is empty.
+- `Config` → `apiBaseURL`, `hostedAppsBaseURL`, `hostedAppsDisplayHost`, and `sparkleFeedURL` default to empty strings.
+
+Remaining vendor surfaces not removed in Pass 07 (inert or addressed in later passes):
+
+- Supabase/Superwall/billing code remains in `10x-macos/Services/Supabase*` and related models but is not reachable from active local-mode flows.
+- `APIClient` remains for other legacy surfaces not targeted by this pass.
+- App Store submission/marketing full cleanup remains Pass 08.
+
+### Verification
+
+- `git diff --check` passed.
+- `xcrun swift test` passed: 192 tests, 0 failures.
+- `xcodebuild -project 10x-macos.xcodeproj -scheme 10x-macos -configuration Debug -derivedDataPath .derivedData/10x-macos build CODE_SIGNING_ALLOWED=NO` passed and produced `.derivedData/10x-macos/Build/Products/Debug/11x.app`.
+- `node .gitnexus/run.cjs detect-changes -r 10x` reported 19 files, 52 symbols, low risk, 0 affected processes.
+- Pass-specific tests added/updated and passing:
+  - `AppStoreSubmissionTests`: `hostedURL` always returns nil; publish blockers include the local-mode message.
+  - `AppUpdateChannelTests`: `browserReleaseNotesURL` returns nil for vendor and unrelated URLs.
+  - `HostedVendorRemovalTests`: `Config.apiBaseURL`/`hostedAppsBaseURL`/`sparkleFeedURL` are empty by default; `publishAppStoreSubmission`/`unpublishAppStoreSubmission` are blocked with the local-mode message.
+- Targeted source scan: no remaining `APIClient.builder("claude/stream")`, `APIClient.builder("openai/images/generate")`, or `APIClient.builder("chat-title")` calls in `10x-macos/`.
+
+### Remaining Notes
+
+- Full App Store/submission/marketing cleanup is Pass 08 per the master plan.
+- `scripts/release/` contents were not modified; only noted in the audit.
+- No push performed.

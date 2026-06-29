@@ -6,9 +6,9 @@ enum Config {
     static var apiBaseURL: String {
         let rawValue = ProcessInfo.processInfo.environment["API_BASE_URL"]
             ?? Bundle.main.infoDictionary?["API_BASE_URL"] as? String
-            ?? "http://localhost:8000"
+            ?? ""
 
-        return normalizedBaseURL(rawValue)
+        return rawValue.isEmpty ? "" : normalizedBaseURL(rawValue)
     }
 
     static let apiVersion = "v1"
@@ -57,9 +57,11 @@ enum Config {
     }
 
     static var sparkleFeedURL: String {
-        ProcessInfo.processInfo.environment["SPARKLE_FEED_URL"]
+        // 11x local cockpit: vendor updater feeds are disabled.
+        let configured = ProcessInfo.processInfo.environment["SPARKLE_FEED_URL"]
             ?? Bundle.main.infoDictionary?["SUFeedURL"] as? String
             ?? ""
+        return configured.isEmpty ? "" : configured
     }
 
     static var defaultUpdateChannel: AppUpdateChannel {
@@ -67,14 +69,14 @@ enum Config {
     }
 
     static var hostedAppsBaseURL: String {
-        normalizedBaseURL(
-            ProcessInfo.processInfo.environment["HOSTED_APPS_BASE_URL"]
-                ?? "https://apps.example.invalid"
-        )
+        let raw = ProcessInfo.processInfo.environment["HOSTED_APPS_BASE_URL"]
+            ?? Bundle.main.infoDictionary?["HOSTED_APPS_BASE_URL"] as? String
+            ?? ""
+        return raw.isEmpty ? "" : normalizedBaseURL(raw)
     }
 
     static var hostedAppsDisplayHost: String {
-        URL(string: hostedAppsBaseURL)?.host ?? "apps.example.invalid"
+        URL(string: hostedAppsBaseURL)?.host ?? ""
     }
 
     static var supabaseURL: String {

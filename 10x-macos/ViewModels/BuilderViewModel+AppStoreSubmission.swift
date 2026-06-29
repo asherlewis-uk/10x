@@ -111,67 +111,25 @@ extension BuilderViewModel {
     }
 
     func publishAppStoreSubmission() async {
-        guard let project = activeProject else {
+        guard activeProject != nil else {
             appStoreSubmissionError = "No active project."
             return
         }
 
-        let blockers = appStoreSubmissionPublishBlockers
-        guard blockers.isEmpty else {
-            appStoreSubmissionError = blockers.joined(separator: " ")
-            appStoreSubmissionStatus = nil
-            return
-        }
-
-        isPublishingAppStoreSubmission = true
-        appStoreSubmissionError = nil
-        appStoreSubmissionStatus = "Publishing hosted legal pages..."
-        defer { isPublishingAppStoreSubmission = false }
-
-        let updatedAtLabel = appStoreUpdatedAtLabel(for: Date())
-
-        do {
-            let normalized = appStoreSubmissionDraft.normalized(projectName: project.name)
-            let payload = normalized.publishedPayload(projectId: project.id, updatedAtLabel: updatedAtLabel)
-            let published = try await supabase.savePublishedAppStorePage(payload)
-
-            var nextDraft = normalized
-            nextDraft.publish.isPublished = true
-            nextDraft.publish.lastPublishedAt = published.publishedAt
-            nextDraft.publish.lastPublishedSlug = published.publicSlug
-            nextDraft.publish.publicSlug = published.publicSlug
-            nextDraft.publish.updatedAt = published.updatedAt
-            await saveAppStoreSubmissionDraft(nextDraft)
-
-            appStoreSubmissionStatus = "Published hosted legal pages."
-        } catch {
-            appStoreSubmissionError = "Failed to publish hosted legal pages: \(error.localizedDescription)"
-            appStoreSubmissionStatus = nil
-        }
+        // 11x local cockpit: hosted publishing is disabled.
+        appStoreSubmissionError = "Hosted publishing is not available in 11x. Use local export instead."
+        appStoreSubmissionStatus = nil
     }
 
     func unpublishAppStoreSubmission() async {
-        guard let project = activeProject else {
+        guard activeProject != nil else {
             appStoreSubmissionError = "No active project."
             return
         }
 
-        isPublishingAppStoreSubmission = true
-        appStoreSubmissionError = nil
-        appStoreSubmissionStatus = "Unpublishing hosted legal pages..."
-        defer { isPublishingAppStoreSubmission = false }
-
-        do {
-            try await supabase.unpublishAppStorePage(projectId: project.id)
-            var nextDraft = appStoreSubmissionDraft.normalized(projectName: project.name)
-            nextDraft.publish.isPublished = false
-            nextDraft.publish.updatedAt = BuilderChat.timestamp()
-            await saveAppStoreSubmissionDraft(nextDraft)
-            appStoreSubmissionStatus = "Unpublished hosted legal pages."
-        } catch {
-            appStoreSubmissionError = "Failed to unpublish hosted legal pages: \(error.localizedDescription)"
-            appStoreSubmissionStatus = nil
-        }
+        // 11x local cockpit: hosted publishing is disabled.
+        appStoreSubmissionError = "Hosted publishing is not available in 11x. Use local export instead."
+        appStoreSubmissionStatus = nil
     }
 
     func exportAppStoreSubmissionPacket() async {
@@ -247,67 +205,15 @@ extension BuilderViewModel {
         project: BuilderProject,
         draft: AppStoreSubmissionDraft
     ) async throws -> AppStoreSubmissionGenerated {
-        let billingGroupId = UUID().uuidString
-        let billingMessagePreview = "Generate App Store legal drafts"
-        var body: [String: Any] = [
-            "system": appStoreSubmissionSystemPrompt(),
-            "messages": [[
-                "role": "user",
-                "content": [[
-                    "type": "text",
-                    "text": try appStoreSubmissionPromptText(project: project, draft: draft),
-                ]],
-            ]],
-            "tools": [],
-            "max_tokens": 7200,
-            "model": Self.appStoreSubmissionModel,
-            "idempotency_key": UUID().uuidString,
-            "billing_group_id": billingGroupId,
-            "billing_message_preview": billingMessagePreview,
-            "project_id": project.id,
-        ]
-        if let sessionId = activeChat?.id {
-            body["session_id"] = sessionId
-        }
-
-        do {
-            let rawLines = try await apiClient.stream(
-                APIClient.builder("claude/stream"),
-                method: "POST",
-                json: body,
-                accessToken: accessToken
-            )
-
-            var text = ""
-            for try await line in rawLines {
-                guard let data = line.data(using: .utf8),
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let type = json["type"] as? String else {
-                    continue
-                }
-                if type == "content_block_delta",
-                   let delta = json["delta"] as? [String: Any],
-                   delta["type"] as? String == "text_delta",
-                   let chunk = delta["text"] as? String {
-                    text += chunk
-                    continue
-                }
-                if type == "error" {
-                    throw APIError.serverError(
-                        statusCode: 502,
-                        message: (json["message"] as? String) ?? "App Store legal generation failed."
-                    )
-                }
-            }
-
-            // Billing refresh disabled in 11x local cockpit
-
-            let response = try parseAppStoreSubmissionResponse(text)
-            return normalizedGeneratedResponse(from: response)
-        } catch {
-            // Billing refresh disabled in 11x local cockpit
-            throw error
-        }
+        // 11x local cockpit: hosted vendor backend generation is disabled.
+        // Legal drafts can still be edited manually and exported locally.
+        _ = accessToken
+        _ = project
+        _ = draft
+        throw APIError.serverError(
+            statusCode: 503,
+            message: "Hosted App Store legal draft generation is not available in 11x. Use local export instead."
+        )
     }
 
     private func appStoreSubmissionSystemPrompt() -> String {

@@ -156,14 +156,14 @@ struct ProductionView: View {
         VStack(alignment: .leading, spacing: Theme.spacingMD) {
             sectionLabel(title: "Suggested Production Flow", icon: "point.3.connected.trianglepath.dotted")
 
-            Text("Keep the app thin. Let the backend own secrets and business rules. Let your data layer own auth, storage, and durable state.")
+            Text("11x is a local single-user cockpit. Secrets stay on device, data lives in local SQLite, and assets are stored in app support.")
                 .font(Theme.geist(14))
                 .foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 10) {
-                flowLine(title: "Primary path", steps: ["iOS app", "backend", "providers"])
-                flowLine(title: "Data path", steps: ["iOS app", "Supabase", "auth + data + storage"])
+                flowLine(title: "Primary path", steps: ["iOS app", "local providers"])
+                flowLine(title: "Data path", steps: ["iOS app", "local SQLite", "files + keychain"])
             }
         }
     }
@@ -195,7 +195,7 @@ struct ProductionView: View {
             HStack(alignment: .firstTextBaseline, spacing: Theme.spacingMD) {
                 sectionLabel(title: section.title, icon: section.icon)
                 Spacer(minLength: 0)
-                Text("Pick the smallest backend surface")
+                Text("11x local cockpit only")
                     .font(Theme.geist(11, weight: .semibold))
                     .foregroundStyle(Theme.textTertiary)
             }
@@ -256,9 +256,9 @@ struct ProductionView: View {
         case "vercel":
             return Color(hex: "4D8DFF")
         case "supabase":
-            return Theme.accent
+            return Theme.textSecondary
         case "managed-backend":
-            return Color(hex: "2DBA7F")
+            return Theme.textSecondary
         case "both":
             return Theme.warning
         default:
@@ -269,7 +269,7 @@ struct ProductionView: View {
     private func providerTag(for moduleID: String) -> String? {
         switch moduleID {
         case "managed-backend":
-            return "10x-managed path"
+            return "Not available in 11x"
         case "both":
             return "Add only if needed"
         default:

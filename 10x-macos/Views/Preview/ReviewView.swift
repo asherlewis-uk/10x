@@ -557,14 +557,6 @@ struct ReviewView: View {
             .disabled(viewModel.isGeneratingAppStoreSubmission)
 
             HStack(spacing: Theme.spacingSM) {
-                Button {
-                    publishCurrentDraft()
-                } label: {
-                    Label(editableDraft.publish.isPublished ? "Update Live" : "Publish", systemImage: "icloud.and.arrow.up")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(viewModel.isPublishingAppStoreSubmission || !publishBlockers.isEmpty)
-
                 Menu {
                     Button("Refresh Facts") {
                         editableDraft.facts = viewModel.collectAppStoreSubmissionFacts()
@@ -575,16 +567,16 @@ struct ReviewView: View {
                     Button("Export Packet") {
                         exportSubmissionPacket()
                     }
-                    Divider()
-                    Button("Unpublish", role: .destructive) {
-                        unpublishCurrentDraft()
-                    }
-                    .disabled(viewModel.isPublishingAppStoreSubmission || !editableDraft.publish.isPublished)
                 } label: {
                     Label("More", systemImage: "ellipsis.circle")
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
+
+                Text("Hosted publishing is not available in 11x. Use local export instead.")
+                    .font(Theme.geist(12))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .controlSize(.small)
         }
@@ -593,7 +585,7 @@ struct ReviewView: View {
 
     private var compactLegalFactsPanel: some View {
         VStack(alignment: .leading, spacing: Theme.spacingMD) {
-            panelHeading("Public Facts", detail: "Only the fields the hosted pages actually need.")
+            panelHeading("Public Facts", detail: "Optional metadata for local App Store submission notes.")
 
             LabeledField("Company Name", text: $editableDraft.facts.companyName)
             LabeledField("Support Email", text: $editableDraft.facts.supportEmail)
@@ -601,7 +593,7 @@ struct ReviewView: View {
             LabeledField(
                 "Public Slug",
                 text: $editableDraft.publish.publicSlug,
-                helper: isSlugLocked ? "Locked after first publish." : "Used for \(Config.hostedAppsDisplayHost)/<slug>/…",
+                helper: isSlugLocked ? "Locked after first publish." : "Not used for hosted pages in 11x local cockpit.",
                 disabled: isSlugLocked
             )
         }
@@ -629,15 +621,12 @@ struct ReviewView: View {
 
     private var compactHostedPagesPanel: some View {
         VStack(alignment: .leading, spacing: Theme.spacingSM) {
-            panelHeading("Hosted Pages", detail: "Stable URLs for reviewers and users.")
+            panelHeading("Hosted Pages", detail: "Not available in 11x local cockpit.")
 
-            ForEach(publishPaths, id: \.label) { row in
-                CompactHostedLinkRow(
-                    label: row.label,
-                    url: row.url,
-                    onCopy: copyToPasteboard
-                )
-            }
+            Text("Hosted publishing is not available in 11x. Use local export instead.")
+                .font(Theme.geist(12))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .appStorePanel()
     }
@@ -654,41 +643,12 @@ struct ReviewView: View {
 
     private var hostedPagesSection: some View {
         VStack(alignment: .leading, spacing: Theme.spacingMD) {
-            panelHeading("Hosted Pages", detail: "Public URLs reviewers and users can visit.")
+            panelHeading("Hosted Pages", detail: "Not available in 11x local cockpit.")
 
-            ForEach(publishPaths, id: \.label) { row in
-                if let url = row.url {
-                    HStack(spacing: Theme.spacingSM) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(row.label)
-                                .font(Theme.geist(12, weight: .semibold))
-                                .foregroundStyle(Theme.textPrimary)
-                            Text(url.absoluteString)
-                                .font(Theme.geistMono(11))
-                                .foregroundStyle(Theme.textSecondary)
-                                .lineLimit(2)
-                                .textSelection(.enabled)
-                        }
-                        Spacer()
-                        Link(destination: url) {
-                            Image(systemName: "arrow.up.right.square")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            copyToPasteboard(url.absoluteString, "\(row.label) URL")
-                        } label: {
-                            Image(systemName: "doc.on.doc")
-                                .font(.system(size: 12, weight: .semibold))
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(Theme.textSecondary)
-                    }
-                    .padding(.vertical, Theme.spacingXS)
-                }
-            }
+            Text("Hosted publishing is not available in 11x. Use local export instead.")
+                .font(Theme.geist(12))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .appStorePanel()
     }
@@ -980,28 +940,10 @@ struct ReviewView: View {
                 .controlSize(.small)
                 .disabled(viewModel.isGeneratingAppStoreSubmission)
 
-                Button {
-                    Task {
-                        await persistEditableDraft()
-                        await viewModel.publishAppStoreSubmission()
-                        syncEditableDraftFromViewModel()
-                    }
-                } label: {
-                    Label("Publish", systemImage: "icloud.and.arrow.up")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(viewModel.isPublishingAppStoreSubmission || !publishBlockers.isEmpty)
-
-                Button("Unpublish") {
-                    Task {
-                        await viewModel.unpublishAppStoreSubmission()
-                        syncEditableDraftFromViewModel()
-                    }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(viewModel.isPublishingAppStoreSubmission || !editableDraft.publish.isPublished)
+                Text("Hosted publishing is not available in 11x. Use local export instead.")
+                    .font(Theme.geist(12))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             VStack(alignment: .leading, spacing: Theme.spacingMD) {
@@ -1055,28 +997,10 @@ struct ReviewView: View {
                     .controlSize(.small)
                     .disabled(viewModel.isGeneratingAppStoreSubmission)
 
-                    Button {
-                        Task {
-                            await persistEditableDraft()
-                            await viewModel.publishAppStoreSubmission()
-                            syncEditableDraftFromViewModel()
-                        }
-                    } label: {
-                        Label("Publish", systemImage: "icloud.and.arrow.up")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(viewModel.isPublishingAppStoreSubmission || !publishBlockers.isEmpty)
-
-                    Button("Unpublish") {
-                        Task {
-                            await viewModel.unpublishAppStoreSubmission()
-                            syncEditableDraftFromViewModel()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(viewModel.isPublishingAppStoreSubmission || !editableDraft.publish.isPublished)
+                    Text("Hosted publishing is not available in 11x. Use local export instead.")
+                        .font(Theme.geist(12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -1142,8 +1066,8 @@ struct ReviewView: View {
             panelHeading(
                 "Publish Readiness",
                 detail: publishBlockers.isEmpty
-                    ? "The public snapshot is ready to publish."
-                    : "These items still need confirmation before the hosted pages should go live."
+                    ? "Drafts look complete for local export."
+                    : "These items still need confirmation before the drafts are ready for local export."
             )
 
             if publishBlockers.isEmpty {
@@ -1234,9 +1158,10 @@ struct ReviewView: View {
             referenceRow(title: "Website URL", value: editableDraft.facts.websiteURL)
             referenceRow(title: "Marketing URL", value: editableDraft.facts.marketingURL)
             referenceRow(title: "Accessibility URL", value: editableDraft.facts.accessibilityURL)
-            referenceRow(title: "Privacy URL", value: editableHostedURL(kind: "privacy")?.absoluteString ?? "")
-            referenceRow(title: "Terms URL", value: editableHostedURL(kind: "terms")?.absoluteString ?? "")
-            referenceRow(title: "Support URL", value: editableHostedURL(kind: "support")?.absoluteString ?? "")
+            Text("Hosted legal page URLs are not available in 11x local cockpit. Export drafts locally instead.")
+                .font(Theme.geist(12))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .appStorePanel()
     }
@@ -1318,18 +1243,11 @@ struct ReviewView: View {
     }
 
     private func publishCurrentDraft() {
-        Task {
-            await persistEditableDraft()
-            await viewModel.publishAppStoreSubmission()
-            syncEditableDraftFromViewModel()
-        }
+        viewModel.appStoreSubmissionError = "Hosted publishing is not available in 11x. Use local export instead."
     }
 
     private func unpublishCurrentDraft() {
-        Task {
-            await viewModel.unpublishAppStoreSubmission()
-            syncEditableDraftFromViewModel()
-        }
+        viewModel.appStoreSubmissionError = "Hosted publishing is not available in 11x. Use local export instead."
     }
 
     private func exportSubmissionPacket() {
@@ -1542,7 +1460,7 @@ private struct AppStoreFactsForm: View {
             LabeledField(
                 "Public Slug",
                 text: $draft.publish.publicSlug,
-                helper: isSlugLocked ? "Locked after first publish." : "Used for \(Config.hostedAppsDisplayHost)/<slug>/...",
+                helper: isSlugLocked ? "Locked after first publish." : "Not used for hosted pages in 11x local cockpit.",
                 disabled: isSlugLocked
             )
         }

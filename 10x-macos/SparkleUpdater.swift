@@ -77,6 +77,11 @@ final class SparkleUpdaterCoordinator: NSObject, SPUUpdaterDelegate, @preconcurr
             updaterDelegate: self,
             userDriverDelegate: self
         )
+
+        // 11x local cockpit: do not start the updater when no vendor feed is configured.
+        if Config.sparkleFeedURL.isEmpty {
+            hasActivated = true
+        }
     }
 
     var updater: SPUUpdater {

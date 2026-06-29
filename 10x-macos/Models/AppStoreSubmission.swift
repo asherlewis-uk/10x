@@ -529,15 +529,15 @@ struct AppStoreSubmissionDraft: Codable, Equatable, Sendable {
     }
 
     func hostedURL(baseURL: String, kind: String) -> URL? {
-        let normalizedBase = baseURL.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let slug = publish.normalized.publicSlug
-        guard !normalizedBase.isEmpty, !slug.isEmpty else { return nil }
-        return URL(string: "\(normalizedBase)/\(slug)/\(kind)")
+        // 11x local cockpit: hosted page URLs are not generated.
+        return nil
     }
 
     func publishBlockers() -> [String] {
         let normalized = normalized(projectName: facts.appName.isEmpty ? "app" : facts.appName)
         var blockers: [String] = []
+        // 11x local cockpit: hosted publishing is disabled.
+        blockers.append("Hosted publishing is not available in 11x. Use local export instead.")
         if normalized.publish.publicSlug.isEmpty {
             blockers.append("Choose a public slug before publishing.")
         }

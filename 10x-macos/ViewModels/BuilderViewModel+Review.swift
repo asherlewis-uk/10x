@@ -524,75 +524,13 @@ extension BuilderViewModel {
         brief: String?,
         sourceCaptures: [PreviewScreenCapture]
     ) async -> (image: NSImage?, warnings: [String]) {
-        let billingGroupId = currentBillingGroupId ?? UUID().uuidString
-        currentBillingGroupId = billingGroupId
-        let iconPlan: ReviewIconPlanner.Plan?
-        do {
-            appStoreReviewStatus = "Planning App Store icon..."
-            iconPlan = try await generateReviewIconPlan(
-                accessToken: accessToken,
-                project: project,
-                brief: brief,
-                sourceCaptures: sourceCaptures,
-                billingGroupId: billingGroupId
-            )
-        } catch {
-            iconPlan = nil
-        }
-        let request = OpenAIImageProxyRequest(
-            prompt: ReviewIconPlanner.imagePrompt(
-                project: project,
-                projectPlan: projectPlan,
-                brief: brief,
-                plan: iconPlan
-            ),
-            model: nil,
-            size: "1024x1024",
-            quality: "high",
-            background: "opaque",
-            outputFormat: "png",
-            n: 1,
-            projectId: project.id,
-            sessionId: activeChat?.id,
-            idempotencyKey: UUID().uuidString
-        )
-
-        do {
-            appStoreReviewStatus = "Generating App Store icon..."
-            let response: OpenAIImageProxyResponse = try await apiClient.post(
-                APIClient.builder("openai/images/generate"),
-                json: try request.jsonDictionary(),
-                accessToken: accessToken,
-                requestTimeout: 180
-            )
-
-            guard let imageBase64 = response.images.first?.base64Data,
-                  let imageData = Data(base64Encoded: imageBase64),
-                  let generatedIconImage = NSImage(data: imageData)?.normalizedAppIconCanvasIfNeeded() else {
-                let warning = "App Store icon generation did not return a valid image."
-                return (nil, warning.isEmpty ? [] : [warning])
-            }
-
-            let timestamp = BuilderChat.timestamp()
-            var nextState = appStoreReviewState
-            let relativePath = LocalAssetStorage.relativePath(
-                projectId: project.id,
-                kind: .export,
-                filename: "icon-1024.png",
-                subdirectories: ["app-store-review"]
-            )
-            await localStore.saveReviewAssetImage(
-                generatedIconImage,
-                relativePath: relativePath,
-                projectName: project.name,
-                projectId: project.id
-            )
-            nextState.icon = AppStoreReviewIconAsset(relativeImagePath: relativePath, updatedAt: timestamp)
-            try await persistReviewState(nextState, project: project)
-            return (generatedIconImage, [])
-        } catch {
-            return (nil, ["App Store icon generation failed: \(error.localizedDescription)"])
-        }
+        // 11x local cockpit: hosted image generation endpoints are disabled.
+        // Users can still export the project and generate icons locally.
+        _ = accessToken
+        _ = project
+        _ = brief
+        _ = sourceCaptures
+        return (nil, ["App Store icon generation is not available in 11x. Use local export instead."])
     }
 
     private func generateReviewIconPlan(
@@ -602,66 +540,15 @@ extension BuilderViewModel {
         sourceCaptures: [PreviewScreenCapture],
         billingGroupId: String
     ) async throws -> ReviewIconPlanner.Plan {
-        var body: [String: Any] = [
-            "system": ReviewIconPlanner.systemPrompt,
-            "messages": [[
-                "role": "user",
-                "content": reviewIconContentBlocks(project: project, brief: brief, sourceCaptures: sourceCaptures),
-            ]],
-            "tools": [],
-            "max_tokens": 2600,
-            "model": ReviewIconPlanner.model,
-            "idempotency_key": UUID().uuidString,
-            "billing_group_id": billingGroupId,
-            "billing_message_preview": "Plan App Store icon",
-            "project_id": project.id,
-        ]
-        if let sessionId = activeChat?.id {
-            body["session_id"] = sessionId
-        }
-
-        let rawLines = try await apiClient.stream(
-            APIClient.builder("claude/stream"),
-            method: "POST",
-            json: body,
-            accessToken: accessToken
-        )
-
-        var text = ""
-        for try await line in rawLines {
-            guard let data = line.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let type = json["type"] as? String else {
-                continue
-            }
-            if type == "content_block_delta",
-               let delta = json["delta"] as? [String: Any],
-               delta["type"] as? String == "text_delta",
-               let chunk = delta["text"] as? String {
-                text += chunk
-                continue
-            }
-            if type == "message_delta",
-               let delta = json["delta"] as? [String: Any],
-               delta["stop_reason"] as? String == "max_tokens" {
-                throw APIError.serverError(
-                    statusCode: 502,
-                    message: "Review icon planning was cut off before it returned valid JSON."
-                )
-            }
-            if type == "error" {
-                throw APIError.serverError(
-                    statusCode: 502,
-                    message: (json["message"] as? String) ?? "Review icon planning failed."
-                )
-            }
-        }
-
-        return try ReviewIconPlanner.parsePlanResponse(
-            text,
-            project: project,
-            projectPlan: projectPlan,
-            brief: brief
+        // 11x local cockpit: hosted vendor backend icon planning is disabled.
+        _ = accessToken
+        _ = project
+        _ = brief
+        _ = sourceCaptures
+        _ = billingGroupId
+        throw APIError.serverError(
+            statusCode: 503,
+            message: "Hosted icon planning is not available in 11x. Use local export instead."
         )
     }
 
