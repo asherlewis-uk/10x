@@ -290,15 +290,16 @@ struct LoginView: View {
 
     private var authButtons: some View {
         let isAuthenticating = auth.isAuthenticating
-        let googleInFlight = auth.activeSignInProvider == .google
+        let googleInFlight = false
         return VStack(spacing: 16) {
             Button {
-                auth.signInWithGoogle()
+                Task { await auth.loadLocalProfile() }
             } label: {
                 HStack(spacing: 10) {
-                    GoogleLogoMark()
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 16, weight: .semibold))
 
-                    Text(googleInFlight ? "Opening Google..." : "Sign in with Google")
+                    Text("Enter local cockpit")
                         .font(Theme.geist(14, weight: .medium))
                 }
                 .foregroundStyle(.black)

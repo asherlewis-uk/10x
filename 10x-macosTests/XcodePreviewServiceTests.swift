@@ -2,16 +2,16 @@ import XCTest
 @testable import TenXAppCore
 
 final class XcodePreviewServiceTests: XCTestCase {
-    func testCompileCheckPackageIncludesSupabaseDependencyWhenImported() {
+    func testCompileCheckPackageDoesNotIncludeSupabaseDependencyIn11x() {
         let packageSwift = XcodePreviewService.testingCompileCheckPackageContents(
             fileTree: [
                 "Sources/SupabaseService.swift": """
-                import Supabase
+                import Foundation
                 """
             ]
         )
 
-        XCTAssertTrue(packageSwift.contains(".package(url: \"https://github.com/supabase/supabase-swift\", from: \"2.0.0\")"))
-        XCTAssertTrue(packageSwift.contains(".product(name: \"Supabase\", package: \"supabase-swift\")"))
+        XCTAssertFalse(packageSwift.contains("supabase-swift"))
+        XCTAssertFalse(packageSwift.contains(".product(name: \"Supabase\""))
     }
 }

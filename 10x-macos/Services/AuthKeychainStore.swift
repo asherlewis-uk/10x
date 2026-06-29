@@ -1,7 +1,6 @@
 import Foundation
 import LocalAuthentication
 import Security
-import Supabase
 
 enum AuthKeychainStore {
     nonisolated static let defaultService = AppIdentity.keychainServiceNamespace
@@ -210,58 +209,6 @@ struct AuthTokenStore: Sendable {
     nonisolated func remove(_ key: String) {
         AuthKeychainStore.removeValue(for: key, service: service)
         defaults.removeObject(forKey: key)
-    }
-
-    private nonisolated var defaults: UserDefaults {
-        guard let userDefaultsSuiteName else {
-            return .standard
-        }
-        return UserDefaults(suiteName: userDefaultsSuiteName) ?? .standard
-    }
-}
-
-struct KeychainAuthLocalStorage: AuthLocalStorage, Sendable {
-    let service: String
-    let legacyKeyPrefix: String
-    let userDefaultsSuiteName: String?
-
-    nonisolated init(
-        service: String = "\(AuthKeychainStore.defaultService).supabase",
-        legacyKeyPrefix: String = "tenx.supabase.auth",
-        userDefaultsSuiteName: String? = nil
-    ) {
-        self.service = service
-        self.legacyKeyPrefix = legacyKeyPrefix
-        self.userDefaultsSuiteName = userDefaultsSuiteName
-    }
-
-    nonisolated func store(key: String, value: Data) throws {
-        AuthKeychainStore.set(value, for: key, service: service)
-        defaults.removeObject(forKey: namespacedKey(for: key))
-    }
-
-    nonisolated func retrieve(key: String) throws -> Data? {
-        if let stored = AuthKeychainStore.data(for: key, service: service) {
-            defaults.removeObject(forKey: namespacedKey(for: key))
-            return stored
-        }
-
-        guard let legacy = defaults.data(forKey: namespacedKey(for: key)) else {
-            return nil
-        }
-
-        AuthKeychainStore.set(legacy, for: key, service: service)
-        defaults.removeObject(forKey: namespacedKey(for: key))
-        return legacy
-    }
-
-    nonisolated func remove(key: String) throws {
-        AuthKeychainStore.removeValue(for: key, service: service)
-        defaults.removeObject(forKey: namespacedKey(for: key))
-    }
-
-    private nonisolated func namespacedKey(for key: String) -> String {
-        "\(legacyKeyPrefix).\(key)"
     }
 
     private nonisolated var defaults: UserDefaults {

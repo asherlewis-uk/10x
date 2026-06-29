@@ -1022,3 +1022,99 @@ Remaining monetization-era notes:
 ## Next Implementation Prompt
 
 Read `AGENTS.md` first. Then read the authoritative 11x docs and `AUDIT_LOCALIZATION.md`. Begin Pass 04 only: provider reseat to OpenAI-compatible BYOK/local gateway using `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL`. Do not remove Supabase/Superwall persistence/auth beyond what Pass 03 already disabled. Preserve user changes, run pass-specific verification, show `git status --short`, and do not push.
+
+## Pass 04 — Supabase to SQL Migration
+
+### Pass Scope And Evidence
+
+Pass: Pass 04 — remove Supabase as a runtime dependency and replace with local SQLite persistence.
+
+Runtime behavior changed:
+
+- Auth: no remote login required. `AuthManager` loads/creates a single local profile.
+- Project/version/message metadata: stored in local SQLite (`cockpit.sqlite`) instead of Supabase tables.
+- Supabase management tools: stubbed; all remote operations return `unavailableInLocalCockpit`.
+- Supabase management OAuth: stubbed; no remote OAuth flow.
+- Supabase Swift package dependency removed from `Package.swift`.
+
+Files created in this pass:
+
+- `PERSISTENCE_DECISION.md`
+- `10x-macos/Services/DB/CockpitDatabase.swift`
+- `10x-macos/Services/DB/MigrationSet.swift`
+- `10x-macos/Services/DB/migrations/001_schema_migrations.sql`
+- `10x-macos/Services/DB/migrations/002_local_profile.sql`
+- `10x-macos/Services/DB/migrations/003_projects.sql`
+- `10x-macos/Services/DB/migrations/004_versions.sql`
+- `10x-macos/Services/DB/migrations/005_messages.sql`
+- `10x-macos/Services/DB/migrations/006_app_settings.sql`
+- `10x-macos/Services/DB/migrations/007_usage_logs.sql`
+- `10x-macos/Services/DB/migrations/008_assets.sql`
+- `10x-macos/Services/DB/Repositories/ProfileRepository.swift`
+- `10x-macos/Services/DB/Repositories/ProjectRepository.swift`
+- `10x-macos/Services/DB/Repositories/VersionRepository.swift`
+- `10x-macos/Services/DB/Repositories/MessageRepository.swift`
+- `10x-macos/Services/DB/Repositories/AppSettingsRepository.swift`
+- `10x-macos/Services/DB/Repositories/UsageLogRepository.swift`
+- `10x-macos/Services/DB/Repositories/AssetRepository.swift`
+- `10x-macosTests/DB/CockpitDatabaseTests.swift`
+- `10x-macosTests/NoSupabaseRuntimeTests.swift`
+
+Files modified in this pass (material to Supabase removal):
+
+- `Package.swift` — removed `supabase-swift` dependency and `Supabase` product link.
+- `10x-macos/ViewModels/AuthManager.swift` — local profile auth; removed Supabase/OAuth/Apple sign-in.
+- `10x-macos/Services/AuthKeychainStore.swift` — removed `KeychainAuthLocalStorage` (depended on Supabase `AuthLocalStorage`).
+- `10x-macos/Services/SupabaseService.swift` — rewrote as local SQLite compatibility shim.
+- `10x-macos/Services/SupabaseManagementService.swift` — stubbed remote management; kept minimal parsers/types for UI compatibility.
+- `10x-macos/Services/SupabaseManagementOAuthService.swift` — stubbed remote OAuth.
+- `10x-macos/Services/XcodePreviewService.swift` — removed Supabase dependency inference for generated projects.
+- `10x-macos/Services/Builder/BundledSkillsCatalog.swift` — removed `import Supabase` from skill markdown content.
+- `10x-macos/Views/Auth/LoginView.swift` — replaced Google sign-in button with local-cockpit entry.
+- `10x-macosTests/AuthKeychainStoreTests.swift` — removed Supabase/Superwall token-store tests.
+- `10x-macosTests/SupabaseManagementServiceTests.swift` — removed tests that required remote/token APIs.
+- `10x-macosTests/XcodePreviewServiceTests.swift` — updated to assert Supabase dependency is absent.
+
+Files archived or moved: none.
+
+### Remaining Supabase* Types (Documented Compatibility Shims)
+
+The following `Supabase*` symbols remain in active runtime code as temporary compatibility shims to avoid a large view-model/UI cascade in this pass. They do not import the Supabase SDK and do not perform remote calls:
+
+- `SupabaseService` — temporary local SQLite shim. Routes project/version/message persistence to repositories.
+- `SupabaseManagementService` — stubbed; only URL parsing and minimal JSON parsers remain.
+- `SupabaseManagementOAuthService` — stubbed; no OAuth flow.
+- `SupabaseSchemaVisualizer` — no Supabase import; reads local SQL files.
+- `SupabaseManagementProject`, `SupabaseManagementOrganization`, `SupabaseProjectConnectionDetails`, `SupabaseAuthProviderSnapshot` — UI-bound types.
+- `SupabaseReadTableInput`, `SupabaseWriteTableInput`, `SupabaseExecuteSQLInput`, `SupabaseManageSettingsInput`, `SupabaseWriteOperation`, `SupabaseManageSettingsAction` — tool input types.
+- `SupabaseServiceError`, `SupabaseSessionSnapshot`, `SupabaseAuthEvent`, `SupabaseAuthStateUpdate` — `SupabaseService` compatibility types.
+- `SupabaseManagementServiceError`, `SupabaseManagementOAuthError` — error types used by views.
+
+### What Was Not Done (Scope Locks Honored)
+
+- Provider reseat was not implemented beyond removing Supabase as a dependency.
+- Hosted export changes were not implemented beyond what was required to remove Supabase dependency.
+- No SQL migration tooling was added for importing legacy Supabase data.
+- Superwall and billing surfaces were not touched beyond existing Pass 03 work.
+
+### Verification
+
+- `git diff --check` passed.
+- `xcrun swift test` passed: 170 tests, 0 failures.
+- `xcodebuild -project 10x-macos.xcodeproj -scheme 10x-macos -configuration Debug -derivedDataPath .derivedData/10x-macos build CODE_SIGNING_ALLOWED=NO` succeeded and produced `.derivedData/10x-macos/Build/Products/Debug/11x.app`.
+- `NoSupabaseRuntimeTests` confirms:
+  - app boots without Supabase env vars
+  - no runtime source file imports `Supabase`
+  - `Package.swift` does not reference `supabase-swift`
+- `CockpitDatabaseTests` confirms:
+  - migrations apply on empty DB
+  - project CRUD works through SQL
+  - version persistence works through SQL
+  - settings persistence works through SQL
+  - usage logs are local diagnostics only and do not gate features
+
+### Static Scan Notes
+
+- No `import Supabase` remains in `10x-macos/`, `10x-evals/`, `10x-macosTests/`, or `10x-evalsTests/`.
+- `Package.swift` no longer declares the `supabase-swift` package or the `Supabase` product dependency.
+- Supabase env vars (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) still appear in `Config.swift` as inert fallbacks and in legacy project environment variable handling; they no longer drive auth or runtime persistence.

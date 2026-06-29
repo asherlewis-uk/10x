@@ -1458,10 +1458,8 @@ actor XcodePreviewService {
     private nonisolated static func requiredPackageDependencies(
         for fileTree: [String: String]
     ) -> [SwiftPackageDependency] {
-        var dependencies: [SwiftPackageDependency] = []
-        if fileTree.values.contains(where: { importsModule("Supabase", in: $0) }) {
-            dependencies.append(.supabase)
-        }
+        let dependencies: [SwiftPackageDependency] = []
+        // Supabase removed in 11x local cockpit — generated projects must not depend on it.
         // Superwall removed in 11x local cockpit
         return dependencies
     }

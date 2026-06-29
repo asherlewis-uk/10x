@@ -13,14 +13,12 @@ let package = Package(
         .package(url: "https://github.com/sparkle-project/Sparkle.git", exact: "2.9.1"),
         // Keep Xcode's package scheme and the app project on the same crypto checkout.
         .package(url: "https://github.com/apple/swift-crypto.git", exact: "4.2.0"),
-        .package(url: "https://github.com/supabase/supabase-swift.git", exact: "2.41.1"),
     ],
     targets: [
         .target(
             name: "TenXAppCore",
             dependencies: [
                 .product(name: "Crypto", package: "swift-crypto"),
-                .product(name: "Supabase", package: "supabase-swift"),
             ],
             path: ".",
             exclude: [
@@ -48,6 +46,7 @@ let package = Package(
                 "10x-macos/10x_macos_release.entitlements",
                 "10x-macos/TenXAppApp.swift",
                 "10x-macos/SparkleUpdater.swift",
+                "10x-macos/Services/DB/migrations",
                 "10x-macos/Resources/Fonts",
             ],
             sources: [

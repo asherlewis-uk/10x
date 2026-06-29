@@ -193,7 +193,6 @@ enum BundledSkillsCatalog {
 
     ```swift
     import AuthenticationServices
-    import Supabase
 
     let idToken = String(data: credential.identityToken!, encoding: .utf8)!
 
@@ -221,7 +220,6 @@ enum BundledSkillsCatalog {
 
     ```swift
     import GoogleSignIn
-    import Supabase
 
     let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootController)
     let idToken = result.user.idToken!.tokenString

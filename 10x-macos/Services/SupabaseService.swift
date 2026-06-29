@@ -1,13 +1,18 @@
 import Foundation
-import Supabase
 
+/// Compatibility shim that previously wrapped the Supabase client.
+/// In 11x it routes project/version/message persistence through local SQLite
+/// repositories and the local filesystem store.
+///
+/// Status: temporary compatibility shim to keep call-site churn bounded during
+/// Pass 04. It should be renamed/removed once the rest of the app is updated.
 enum SupabaseServiceError: LocalizedError {
     case emptyResult(context: String)
 
     var errorDescription: String? {
         switch self {
         case .emptyResult(let context):
-            return "Supabase returned no rows for \(context)."
+            return "Local persistence returned no rows for \(context)."
         }
     }
 }
@@ -35,277 +40,102 @@ struct SupabaseAuthStateUpdate: Sendable {
     let session: SupabaseSessionSnapshot?
 }
 
-private final class VolatileAuthLocalStorage: AuthLocalStorage, @unchecked Sendable {
-    private let lock = NSLock()
-    private var values: [String: Data] = [:]
-
-    func store(key: String, value: Data) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        values[key] = value
-    }
-
-    func retrieve(key: String) throws -> Data? {
-        lock.lock()
-        defer { lock.unlock() }
-        return values[key]
-    }
-
-    func remove(key: String) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        values.removeValue(forKey: key)
-    }
-}
-
-/// Direct Supabase client for all database CRUD operations.
-/// Replaces BuilderService — no more routing through the FastAPI middleman.
+/// Direct local persistence client. Replaces the Supabase-backed `SupabaseService`.
 actor SupabaseService {
     static let shared = SupabaseService()
 
-    let client: SupabaseClient
+    private let projects = ProjectRepository()
+    private let versions = VersionRepository()
+    private let messages = MessageRepository()
+    private let localStore = LocalProjectStore()
 
-    private init() {
-        client = SupabaseClient(
-            supabaseURL: URL(string: Config.supabaseURL)!,
-            supabaseKey: Config.supabaseAnonKey,
-            options: SupabaseClientOptions(
-                auth: SupabaseClientOptions.AuthOptions(
-                    storage: VolatileAuthLocalStorage(),
-                    emitLocalSessionAsInitialSession: false
-                )
-            )
+    // MARK: - Session compatibility (no-op)
+
+    func setSession(accessToken: String, refreshToken: String?) async throws -> SupabaseSessionSnapshot {
+        return SupabaseSessionSnapshot(
+            accessToken: accessToken,
+            refreshToken: refreshToken ?? "",
+            userId: nil,
+            userEmail: nil
         )
     }
 
-    /// Sync the user's auth session so RLS works on all queries.
-    func setSession(accessToken: String, refreshToken: String?) async throws -> SupabaseSessionSnapshot {
-        guard let refreshToken, !refreshToken.isEmpty else {
-            throw AuthError.sessionMissing
-        }
-        let session = try await client.auth.setSession(accessToken: accessToken, refreshToken: refreshToken)
-        return Self.snapshot(from: session)
-    }
-
-    /// Refresh the session via the SDK's in-memory tokens.
-    /// Returns fresh tokens and user info from the SDK session.
     func refreshSDKSession() async throws -> SupabaseSessionSnapshot {
-        let session = try await client.auth.refreshSession()
-        return Self.snapshot(from: session)
+        return try await setSession(accessToken: "", refreshToken: "")
     }
 
     func signInWithApple(idToken: String, nonce: String) async throws -> SupabaseSessionSnapshot {
-        let session = try await client.auth.signInWithIdToken(
-            credentials: OpenIDConnectCredentials(
-                provider: .apple,
-                idToken: idToken,
-                nonce: nonce
-            )
-        )
-        return Self.snapshot(from: session)
+        return try await setSession(accessToken: idToken, refreshToken: "")
     }
 
     func authStateChanges() -> AsyncStream<SupabaseAuthStateUpdate> {
-        let upstream = client.auth.authStateChanges
-
-        return AsyncStream { continuation in
-            let task = Task {
-                for await change in upstream {
-                    continuation.yield(
-                        SupabaseAuthStateUpdate(
-                            event: Self.mapAuthEvent(change.event),
-                            session: change.session.map(Self.snapshot(from:))
-                        )
-                    )
-                }
-                continuation.finish()
-            }
-
-            continuation.onTermination = { _ in
-                task.cancel()
-            }
+        AsyncStream { continuation in
+            continuation.finish()
         }
     }
 
-    func signOut() async {
-        try? await client.auth.signOut()
-    }
+    func signOut() async { }
 
-    func updateCurrentUser(fullName: String?, givenName: String?, familyName: String?) async throws {
-        var metadata: [String: AnyJSON] = [:]
-        if let fullName, !fullName.isEmpty {
-            metadata["full_name"] = .string(fullName)
-        }
-        if let givenName, !givenName.isEmpty {
-            metadata["given_name"] = .string(givenName)
-        }
-        if let familyName, !familyName.isEmpty {
-            metadata["family_name"] = .string(familyName)
-        }
-
-        guard !metadata.isEmpty else { return }
-        _ = try await client.auth.update(user: UserAttributes(data: metadata))
-    }
+    func updateCurrentUser(fullName: String?, givenName: String?, familyName: String?) async throws { }
 
     // MARK: - Projects
 
     func fetchProjects(userId: String) async throws -> [BuilderProject] {
-        try await client.from("builder_projects")
-            .select()
-            .eq("user_id", value: userId)
-            .neq("status", value: "archived")
-            .order("updated_at", ascending: false)
-            .execute()
-            .value
+        try await projects.fetchProjects(userId: userId)
     }
 
     func fetchArchivedProjects(userId: String) async throws -> [BuilderProject] {
-        try await client.from("builder_projects")
-            .select()
-            .eq("user_id", value: userId)
-            .eq("status", value: "archived")
-            .order("updated_at", ascending: false)
-            .execute()
-            .value
+        try await projects.fetchProjects(userId: userId, status: "archived")
     }
 
     func createProject(userId: String, name: String, platform: String = "swiftui") async throws -> BuilderProject {
-        let data = CreateProjectData(
-            userId: userId,
-            name: name,
-            slug: Self.slugify(name),
-            platform: platform
-        )
-        return try await requireFirstResult(context: "creating project `\(name)`") {
-            try await client.from("builder_projects")
-                .insert(data)
-                .select()
-                .execute()
-                .value
-        }
+        let project = try await projects.createProject(userId: userId, name: name, platform: platform)
+        return project
     }
 
     func getProject(id: String) async throws -> BuilderProject? {
-        let results: [BuilderProject] = try await client.from("builder_projects")
-            .select()
-            .eq("id", value: id)
-            .execute()
-            .value
-        return results.first
+        try await projects.getProject(id: id)
     }
 
     func updateProject(id: String, data: UpdateProjectData) async throws -> BuilderProject {
-        let results: [BuilderProject] = try await client.from("builder_projects")
-            .update(data)
-            .eq("id", value: id)
-            .select()
-            .execute()
-            .value
-        if let project = results.first {
-            return project
-        }
-        if let existing = try await getProject(id: id) {
-            return existing
-        }
-        throw SupabaseServiceError.emptyResult(context: "updating project `\(id)`")
+        return try await projects.updateProject(
+            id: id,
+            name: data.name,
+            description: data.description,
+            slug: data.slug,
+            settings: data.settings
+        )
     }
 
     func archiveProject(id: String) async throws -> BuilderProject {
-        return try await requireFirstResult(context: "archiving project `\(id)`") {
-            try await client.from("builder_projects")
-                .update(["status": "archived"])
-                .eq("id", value: id)
-                .select()
-                .execute()
-                .value
-        }
+        try await projects.archiveProject(id: id)
     }
 
     func unarchiveProject(id: String) async throws -> BuilderProject {
-        return try await requireFirstResult(context: "unarchiving project `\(id)`") {
-            try await client.from("builder_projects")
-                .update(["status": "active"])
-                .eq("id", value: id)
-                .select()
-                .execute()
-                .value
-        }
+        try await projects.unarchiveProject(id: id)
     }
 
     func deleteProject(id: String) async throws {
-        try await client.from("builder_projects")
-            .delete()
-            .eq("id", value: id)
-            .execute()
+        try await projects.deleteProject(id: id)
     }
 
-    // MARK: - Published App Store Pages
+    // MARK: - Published App Store Pages (hosted feature disabled in 11x)
 
-    func getPublishedAppStorePage(projectId: String) async throws -> PublishedAppStorePage? {
-        let results: [PublishedAppStorePage] = try await client.from("published_app_store_pages")
-            .select()
-            .eq("project_id", value: projectId)
-            .limit(1)
-            .execute()
-            .value
-        return results.first
-    }
-
-    func getPublishedAppStorePage(publicSlug: String) async throws -> PublishedAppStorePage? {
-        let results: [PublishedAppStorePage] = try await client.from("published_app_store_pages")
-            .select()
-            .eq("public_slug", value: publicSlug)
-            .limit(1)
-            .execute()
-            .value
-        return results.first
-    }
-
+    func getPublishedAppStorePage(projectId: String) async throws -> PublishedAppStorePage? { nil }
+    func getPublishedAppStorePage(publicSlug: String) async throws -> PublishedAppStorePage? { nil }
     func savePublishedAppStorePage(_ payload: PublishedAppStorePagePayload) async throws -> PublishedAppStorePage {
-        if let existing = try await getPublishedAppStorePage(projectId: payload.projectId) {
-            let results: [PublishedAppStorePage] = try await client.from("published_app_store_pages")
-                .update(payload)
-                .eq("id", value: existing.id)
-                .select()
-                .execute()
-                .value
-            return try firstResult(results, context: "updating published app store page for `\(payload.projectId)`")
-        }
-
-        let results: [PublishedAppStorePage] = try await client.from("published_app_store_pages")
-            .insert(payload)
-            .select()
-            .execute()
-            .value
-        return try firstResult(results, context: "creating published app store page for `\(payload.projectId)`")
+        throw SupabaseServiceError.emptyResult(context: "hosted app store pages are disabled in 11x local cockpit")
     }
-
-    func unpublishAppStorePage(projectId: String) async throws {
-        try await client.from("published_app_store_pages")
-            .delete()
-            .eq("project_id", value: projectId)
-            .execute()
-    }
+    func unpublishAppStorePage(projectId: String) async throws { }
 
     // MARK: - Versions
 
     func fetchVersions(projectId: String) async throws -> [BuilderVersion] {
-        try await client.from("builder_versions")
-            .select()
-            .eq("project_id", value: projectId)
-            .order("version_number", ascending: false)
-            .execute()
-            .value
+        try await versions.fetchVersions(projectId: projectId)
     }
 
     func getVersion(projectId: String, versionId: String) async throws -> BuilderVersion? {
-        let results: [BuilderVersion] = try await client.from("builder_versions")
-            .select()
-            .eq("id", value: versionId)
-            .eq("project_id", value: projectId)
-            .execute()
-            .value
-        return results.first
+        try await versions.getVersion(projectId: projectId, versionId: versionId)
     }
 
     func createVersion(
@@ -314,56 +144,20 @@ actor SupabaseService {
         fileTree: [String: String],
         prompt: String
     ) async throws -> BuilderVersion {
-        // Get next version number
-        let existing = try await fetchVersions(projectId: projectId)
-        let nextNum = (existing.first?.versionNumber ?? 0) + 1
-
-        let data = CreateVersionData(
+        try await versions.createVersion(
             projectId: projectId,
             conversationId: conversationId,
-            versionNumber: nextNum,
             fileTree: fileTree,
-            prompt: prompt,
-            status: "ready"
+            prompt: prompt
         )
-        let version: BuilderVersion = try await requireFirstResult(
-            context: "creating version for project `\(projectId)`"
-        ) {
-            try await client.from("builder_versions")
-                .insert(data)
-                .select()
-                .execute()
-                .value
-        }
-
-        // Update project's current_version_id
-        try await client.from("builder_projects")
-            .update(["current_version_id": version.id])
-            .eq("id", value: projectId)
-            .execute()
-
-        return version
     }
 
     // MARK: - Conversations & Messages
 
     func fetchConversation(projectId: String) async throws -> (messages: [BuilderMessage], conversationId: String?) {
-        let convos: [ConversationRow] = try await client.from("builder_conversations")
-            .select()
-            .eq("project_id", value: projectId)
-            .execute()
-            .value
-
-        guard let convo = convos.first else { return ([], nil) }
-
-        let messages: [BuilderMessage] = try await client.from("builder_messages")
-            .select()
-            .eq("conversation_id", value: convo.id)
-            .order("created_at", ascending: true)
-            .execute()
-            .value
-
-        return (messages, convo.id)
+        let localMessages = await localStore.loadMessages(projectName: "", projectId: projectId) ?? []
+        let conversationId = localMessages.first?.conversationId ?? projectId
+        return (localMessages, conversationId)
     }
 
     func addMessage(
@@ -372,25 +166,22 @@ actor SupabaseService {
         content: String,
         versionId: String? = nil
     ) async throws -> BuilderMessage {
-        let data = CreateMessageData(
+        let message = BuilderMessage(
+            id: UUID().uuidString,
             conversationId: conversationId,
             role: role,
             content: content,
-            versionId: versionId
+            versionId: versionId,
+            createdAt: BuilderChat.timestamp()
         )
-        return try await requireFirstResult(context: "adding message to conversation `\(conversationId)`") {
-            try await client.from("builder_messages")
-                .insert(data)
-                .select()
-                .execute()
-                .value
-        }
+        try await messages.addMessage(message)
+        return message
     }
 
     // MARK: - Helpers
 
     private func requireFirstResult<T>(context: String, _ load: () async throws -> [T]) async throws -> T {
-        try firstResult(try await load(), context: context)
+        try firstResult(await load(), context: context)
     }
 
     private func firstResult<T>(_ results: [T], context: String) throws -> T {
@@ -398,44 +189,6 @@ actor SupabaseService {
             throw SupabaseServiceError.emptyResult(context: context)
         }
         return first
-    }
-
-    private static func snapshot(from session: Session) -> SupabaseSessionSnapshot {
-        SupabaseSessionSnapshot(
-            accessToken: session.accessToken,
-            refreshToken: session.refreshToken,
-            userId: session.user.id.uuidString,
-            userEmail: session.user.email
-        )
-    }
-
-    private static func mapAuthEvent(_ event: AuthChangeEvent) -> SupabaseAuthEvent {
-        switch event {
-        case .initialSession:
-            return .initialSession
-        case .passwordRecovery:
-            return .passwordRecovery
-        case .signedIn:
-            return .signedIn
-        case .signedOut:
-            return .signedOut
-        case .tokenRefreshed:
-            return .tokenRefreshed
-        case .userUpdated:
-            return .userUpdated
-        case .userDeleted:
-            return .userDeleted
-        case .mfaChallengeVerified:
-            return .mfaChallengeVerified
-        }
-    }
-
-    private static func slugify(_ name: String) -> String {
-        let slug = name.lowercased()
-            .replacing(/[^a-z0-9]+/, with: "-")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-        let hex = (0..<3).map { _ in String(format: "%02x", Int.random(in: 0...255)) }.joined()
-        return "\(slug)-\(hex)"
     }
 }
 
