@@ -322,7 +322,7 @@ struct LivePreviewView: View {
                 icon: "camera.viewfinder",
                 captures: viewModel.capturedScreenLibrary,
                 selectedID: viewModel.selectedCapturedScreenID,
-                emptyText: "Save screenshots here for reuse in App Store and chat.",
+                emptyText: "Save screenshots here for reuse in marketing assets and chat.",
                 buttonTitle: "Manage",
                 buttonIcon: "slider.horizontal.3",
                 buttonAction: { isManagingScreens = true },

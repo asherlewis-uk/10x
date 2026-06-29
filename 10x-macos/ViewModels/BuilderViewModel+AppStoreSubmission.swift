@@ -71,43 +71,9 @@ extension BuilderViewModel {
     }
 
     func generateAppStoreSubmissionDrafts() async {
-        guard let project = activeProject else {
-            appStoreSubmissionError = "No active project."
-            appStoreSubmissionStatus = nil
-            return
-        }
-        guard let accessToken = sessionAccessToken else {
-            appStoreSubmissionError = "No active session. Open the project again before generating App Store legal drafts."
-            appStoreSubmissionStatus = nil
-            return
-        }
-
-        isGeneratingAppStoreSubmission = true
-        appStoreSubmissionError = nil
-        appStoreSubmissionStatus = "Collecting project facts..."
-        defer { isGeneratingAppStoreSubmission = false }
-
-        var nextDraft = appStoreSubmissionDraft.normalized(projectName: project.name)
-        nextDraft.facts = collectAppStoreSubmissionFacts()
-        await saveAppStoreSubmissionDraft(nextDraft)
-
-        do {
-            appStoreSubmissionStatus = "Generating privacy, terms, support, and submission drafts..."
-            let generated = try await requestAppStoreSubmissionGeneration(
-                accessToken: accessToken,
-                project: project,
-                draft: nextDraft
-            )
-            nextDraft.generated = generated
-            if nextDraft.publish.publicSlug.isEmpty {
-                nextDraft.publish.publicSlug = AppStoreSubmissionDraft.normalizedSlug(project.name)
-            }
-            await saveAppStoreSubmissionDraft(nextDraft)
-            appStoreSubmissionStatus = "App Store legal and submission drafts updated."
-        } catch {
-            appStoreSubmissionError = error.localizedDescription
-            appStoreSubmissionStatus = nil
-        }
+        // 11x local cockpit: hosted App Store legal/submission draft generation is disabled.
+        appStoreSubmissionError = "App Store submission generation is not available in 11x. Use local export instead."
+        appStoreSubmissionStatus = nil
     }
 
     func publishAppStoreSubmission() async {

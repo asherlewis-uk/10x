@@ -95,11 +95,6 @@ struct ChatInputView: View {
         !viewModel.hasPendingUserResponse && !isEmpty && displayedComposerError == nil
     }
 
-    private var showsBillingUpgradeCTA: Bool {
-        guard let displayedComposerError else { return false }
-        return Self.isBillingUpgradeMessage(displayedComposerError)
-    }
-
     private var skillSearchContext: TokenSearchContext? {
         Self.skillSearchContext(in: input)
     }
@@ -230,16 +225,7 @@ struct ChatInputView: View {
 
                         Spacer()
 
-                        if showsBillingUpgradeCTA {
-                            Button {
-                                openPlansAndPacks()
-                            } label: {
-                                Text("Plans & Packs")
-                                    .font(Theme.geist(11, weight: .semibold))
-                                    .foregroundStyle(Theme.accent)
-                            }
-                            .buttonStyle(.plain)
-                        }
+                        EmptyView()
                     }
                 }
 
@@ -956,11 +942,7 @@ struct ChatInputView: View {
 
     private static func isBillingUpgradeMessage(_ message: String) -> Bool {
         let normalized = message.lowercased()
-        return normalized.contains("out of credits")
-            || normalized.contains("not enough credits")
-            || normalized.contains("don’t have enough credits")
-            || normalized.contains("don't have enough credits")
-            || normalized.contains("add credits or upgrade your plan")
+        return false
     }
 
     private static func recognizedInlineSkillNames(

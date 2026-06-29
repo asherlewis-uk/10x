@@ -1340,3 +1340,72 @@ Remaining vendor surfaces not removed in Pass 07 (inert or addressed in later pa
 - Full App Store/submission/marketing cleanup is Pass 08 per the master plan.
 - `scripts/release/` contents were not modified; only noted in the audit.
 - No push performed.
+
+## Pass 08 — App Store Submission and Marketing Flow Removal
+
+### Pass Scope And Evidence
+
+Pass executed: Pass 08 only, App Store submission and marketing flow removal.
+
+Runtime behavior changed:
+
+- `BuilderViewModel.generateAppStoreSubmissionDrafts()` is now blocked with a local-mode error instead of calling the hosted vendor backend.
+- `BuilderViewModel.requestAppStoreReviewGeneration()` is now blocked with a local-mode error instead of queuing a generation request.
+- `BuilderViewModel.generateReviewAssetsWithAgent(...)` returns a local-mode failure instead of running the agent pipeline that called the provider backend.
+- Review/Production UI copy no longer implies one-click TestFlight/App Store submission, hosted publishing, or managed vendor backend paths.
+- `ProductionGuide` "Recommended Backend Stack" section was replaced with a "Local Cockpit" section describing SQLite, keychain, and local export.
+- `ProductionGuide` "Release Path" section now describes manual local export and the user's own release pipeline instead of TestFlight/App Store submission automation.
+- `ProductionGuide` runtime config bullets now describe local keychain/provider metadata instead of Supabase secrets syncing.
+- Chat error view no longer shows "Plans & Packs" billing/upgrade CTA; the credit/upgrade keyword detector always returns false.
+- LivePreviewView captured-screens copy no longer references "App Store".
+
+Files created:
+
+- None.
+
+Files modified:
+
+- `10x-macos/Models/ProductionGuide.swift`
+- `10x-macos/ViewModels/BuilderViewModel+AppStoreSubmission.swift`
+- `10x-macos/ViewModels/BuilderViewModel+Review.swift`
+- `10x-macos/Views/Chat/ChatInputView.swift`
+- `10x-macos/Views/Chat/ChatPanelView.swift`
+- `10x-macos/Views/Preview/LivePreviewView.swift`
+- `10x-macos/Views/Preview/ReviewView.swift`
+- `10x-macosTests/HostedVendorRemovalTests.swift`
+- `10x-macosTests/ProductionGuideTests.swift`
+
+### Inventory Findings
+
+Surfaces inventoried and removed/disabled:
+
+- App Store submission draft generation (`generateAppStoreSubmissionDrafts`) → blocked.
+- App Store review/marketing asset generation (`requestAppStoreReviewGeneration`, `generateReviewAssetsWithAgent`) → blocked.
+- Auto-Generate/Update Drafts/Update Assets buttons in `ReviewView` → replaced with local-mode notes or disabled Export/Edit buttons.
+- "Hosted Pages" panels in `ReviewView` → already replaced in Pass 07; this pass completes marketing/submission copy updates.
+- `ProductionGuide` backend stack/release/runtime config copy → rewritten for local cockpit.
+- Chat billing/upgrade CTA and credit keyword detection → removed or no-op.
+
+Surfaces retained as local/export-only:
+
+- `ReviewView` still shows exported icon/description/screenshots if they exist and provides "Open Folder" / "Export ZIP" actions.
+- `ReviewView` still allows manual editing of privacy/terms/support drafts and exporting the submission packet.
+- `AppStoreReviewRenderer`, `AppStoreReviewState`, and `AppStoreSubmissionDraft` model types remain for local artifact storage and export.
+- `ProductionGuide` remains as a local `PRODUCTION.md` export artifact.
+
+### Verification
+
+- `git diff --check` passed.
+- `xcrun swift test` passed: 195 tests, 0 failures.
+- `xcodebuild -project 10x-macos.xcodeproj -scheme 10x-macos -configuration Debug -derivedDataPath .derivedData/10x-macos build CODE_SIGNING_ALLOWED=NO` passed and produced `.derivedData/10x-macos/Build/Products/Debug/11x.app`.
+- `node .gitnexus/run.cjs detect-changes -r 10x` reported 15 files, 53 symbols, low risk, 0 affected processes.
+- Pass-specific tests added/updated and passing:
+  - `HostedVendorRemovalTests`: `requestAppStoreReviewGeneration` and `generateAppStoreSubmissionDrafts` blocked with local-mode message; chat UI no longer exposes Plans & Packs or active billing-upgrade paths.
+  - `ProductionGuideTests`: guide mentions Local Cockpit, SQLite, Keychain, Local Export, and user's own release pipeline rather than Supabase/TestFlight/App Store submission automation.
+- Targeted source scan: no active `Plans & Packs` CTAs remain in chat views; credit/upgrade keyword detectors return false.
+
+### Remaining Notes
+
+- Full deletion of `AppStoreReview*` / `AppStoreSubmission*` model and renderer types was intentionally not performed; they remain as local/export-only artifacts.
+- `scripts/release/` contents were not modified; only noted in the audit.
+- No push performed.

@@ -295,54 +295,42 @@ enum ProductionGuideBuilder {
     private static func backendStackSection() -> ProductionGuideSection {
         ProductionGuideSection(
             id: "stack",
-            title: "Recommended Backend Stack",
-            summary: "Most teams only need a small amount of backend code. Supabase Edge Functions are part of the supported production path, so the decision is where auth, secrets, and durable data should live.",
+            title: "Local Cockpit",
+            summary: "11x keeps auth, data, storage, and secret-backed work local to this machine by default.",
             icon: "shippingbox",
             modules: [
                 ProductionGuideModule(
-                    id: "vercel",
-                    title: "Choose Vercel When",
-                    summary: "Vercel is the simplest choice when you mainly need server functions, webhook handling, scheduled jobs, or a thin API layer in front of vendors.",
+                    id: "sqlite",
+                    title: "SQLite",
+                    summary: "The default local data store for the single-user cockpit.",
                     bullets: [
-                        "You want fast deployment for API routes, AI proxy endpoints, Stripe webhooks, or cron-style jobs.",
-                        "You already have a Next.js site or expect to add one soon.",
-                        "Your database needs are light or already handled elsewhere.",
+                        "All durable state lives in `cockpit.sqlite` inside the app support directory.",
+                        "No remote Postgres service, Docker, or managed database is required.",
+                        "Backups are the user's responsibility: copy or export the app support folder.",
                     ],
                     codeBlockLanguage: nil,
                     codeBlock: nil
                 ),
                 ProductionGuideModule(
-                    id: "supabase",
-                    title: "Choose Supabase When",
-                    summary: "Supabase is the better default when auth, relational data, storage, permissions, and Edge Functions are core product requirements.",
+                    id: "keychain",
+                    title: "Keychain",
+                    summary: "Provider secrets and credentials are stored in the OS keychain.",
                     bullets: [
-                        "You need user accounts, Postgres tables, file uploads, admin views, realtime data, or named backend functions.",
-                        "You want auth, database, storage, SQL migrations, and server-side logic in one place.",
-                        "You are comfortable treating publishable client keys as public and enforcing access with Row Level Security and function auth.",
+                        "`OPENAI_API_KEY` is stored in the keychain, not in project files or exported data.",
+                        "Keychain records are namespaced under `app.kasey.11x` so they do not collide with other apps.",
+                        "The OS handles unlock and access control.",
                     ],
                     codeBlockLanguage: nil,
                     codeBlock: nil
                 ),
                 ProductionGuideModule(
-                    id: "managed-backend",
-                    title: "Use 10x Backend When",
-                    summary: "The managed Backend workspace is the right path when you want 10x to scaffold and operate named Supabase Edge Functions for secret-backed API work.",
+                    id: "local-export",
+                    title: "Local Export",
+                    summary: "Projects leave this machine only when you explicitly export them.",
                     bullets: [
-                        "`supabase/functions/<name>/index.ts` is the source of truth for each named endpoint.",
-                        "Backend-only secrets belong in Backend and sync to Supabase. Do not ship them as client runtime variables.",
-                        "If Backend deploys are blocked, treat that as a Supabase project plan or capability issue, not a reason to move secrets back into the app.",
-                    ],
-                    codeBlockLanguage: nil,
-                    codeBlock: nil
-                ),
-                ProductionGuideModule(
-                    id: "both",
-                    title: "Use Both When",
-                    summary: "Supabase plus Vercel is still useful when you also need a web app or server surfaces outside Supabase, but it is no longer the only production path.",
-                    bullets: [
-                        "Use Supabase for auth, Postgres, storage, user-owned data, and any Edge Functions that sit close to that data model.",
-                        "Use Vercel for a Next.js site, vendor webhooks that already live there, or jobs that should stay outside Supabase.",
-                        "Keep the app talking to the smallest API surface that supports the real user flows.",
+                        "Folder exports include generated project files and referenced local assets.",
+                        "ZIP exports include the same content in a single archive.",
+                        "Exports never include provider secrets or keychain-backed values.",
                     ],
                     codeBlockLanguage: nil,
                     codeBlock: nil
@@ -390,41 +378,33 @@ enum ProductionGuideBuilder {
         secureKeys: [String],
         plainKeys: [String]
     ) -> ProductionGuideSection {
-        var beforeTestFlight = [
-            "Run the app against the real production-style backend instead of preview-only assumptions.",
-            "If you use Backend, deploy the named Supabase Edge Functions you depend on and smoke-test them before inviting testers.",
-            "Confirm backend secrets are synced remotely before TestFlight instead of relying on local-only configuration.",
-            "Test sign-in, purchases, uploads, AI calls, and failure states on physical devices and TestFlight.",
-            "Confirm analytics, logs, and crash reporting are visible before inviting external testers.",
-        ]
-        if secureKeys.contains("OPENAI_API_KEY") {
-            beforeTestFlight.insert("Move OpenAI traffic behind your backend before TestFlight distribution.", at: 0)
-        }
-        if plainKeys.contains("SUPERWALL_PUBLIC_API_KEY") {
-            // Superwall removed in 11x local cockpit
-        }
-
+        _ = secureKeys
+        _ = plainKeys
         return ProductionGuideSection(
             id: "release",
             title: "Release Path",
-            summary: "Use TestFlight as the last systems check, then finish the App Store-specific details.",
+            summary: "11x does not submit to the App Store or manage a hosted release pipeline. Use your own manual workflow.",
             icon: "paperplane",
             modules: [
                 ProductionGuideModule(
-                    id: "testflight",
-                    title: "Before TestFlight",
-                    summary: "Invite testers only after the production stack is real enough to learn from.",
-                    bullets: beforeTestFlight,
+                    id: "manual-export",
+                    title: "Export First",
+                    summary: "Export the project locally before moving it to any external system.",
+                    bullets: [
+                        "Use the local folder or ZIP export to grab the generated project and assets.",
+                        "Open the exported project in Xcode and finish any signing, provisioning, or App Store-specific metadata there.",
+                        "Secrets and keychain-backed values are not included in exports.",
+                    ],
                     codeBlockLanguage: nil,
                     codeBlock: nil
                 ),
                 ProductionGuideModule(
-                    id: "app-store",
-                    title: "Before The App Store",
-                    summary: "Finish the release paperwork while the build is still fresh in your head.",
+                    id: "your-own-release",
+                    title: "Use Your Own Release Pipeline",
+                    summary: "Submit and distribute through your own Apple Developer account and tooling.",
                     bullets: [
-                        "Prepare screenshots, privacy answers, support contact info, review notes, and legal URLs.",
-                        "Write down the simplest explanation of your backend architecture for future maintenance and onboarding.",
+                        "TestFlight, App Store Connect, and notarization are outside 11x's scope.",
+                        "Keep screenshots, privacy answers, support contact info, review notes, and legal URLs in your own records.",
                         "Freeze the launch checklist and only submit after the critical items are actually complete.",
                     ],
                     codeBlockLanguage: nil,
@@ -437,23 +417,22 @@ enum ProductionGuideBuilder {
     private static func runtimeConfigBullets(secureKeys: [String], plainKeys: [String]) -> [String] {
         var bullets: [String] = []
 
-        if secureKeys.isEmpty {
-            bullets.append("No secret-like environment variables are configured right now, which is a good time to decide what must stay off-device before launch.")
+        if secureKeys.contains("OPENAI_API_KEY") {
+            bullets.append("`OPENAI_API_KEY` is stored in the keychain and is never exported with the project.")
         } else {
-            bullets.append("Hosted keys configured: \(secureKeys.map { "`\($0)`" }.joined(separator: ", ")). 10x syncs them to Supabase secrets so they stay out of shipped client code and project files.")
+            bullets.append("No provider secret is configured. Add one in settings when you are ready to generate against your own endpoint.")
         }
 
-        if plainKeys.isEmpty {
-            bullets.append("No public config keys are configured right now.")
+        if plainKeys.contains("OPENAI_BASE_URL") || plainKeys.contains("OPENAI_MODEL") {
+            var clientKeys: [String] = []
+            if plainKeys.contains("OPENAI_BASE_URL") { clientKeys.append("`OPENAI_BASE_URL`") }
+            if plainKeys.contains("OPENAI_MODEL") { clientKeys.append("`OPENAI_MODEL`") }
+            bullets.append("Provider metadata configured: \(clientKeys.joined(separator: ", ")). These are safe to keep in the project because they are not secrets.")
         } else {
-            bullets.append("Public config keys configured: \(plainKeys.map { "`\($0)`" }.joined(separator: ", ")). Keep these in the client only if they are intentionally safe to ship.")
+            bullets.append("No provider metadata is configured. Set `OPENAI_BASE_URL` and `OPENAI_MODEL` in settings or project integrations.")
         }
 
-        if plainKeys.contains("SUPERWALL_PUBLIC_API_KEY") {
-            // Superwall removed in 11x local cockpit
-        }
-
-        bullets.append("If a value can spend money, access private data, or call a provider with elevated privileges, move it behind your backend.")
+        bullets.append("If a value can spend money, access private data, or call a provider with elevated privileges, store it in the keychain or an encrypted config file, not in exported project files.")
         return bullets
     }
 }

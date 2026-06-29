@@ -822,7 +822,6 @@ struct ChatPanelView: View {
 
     private func errorView(message: String) -> some View {
         let isConnectionIssue = BuilderGenerationRequestPlanner.isConnectionFailureMessage(message)
-        let showsBillingUpgradeCTA = isBillingUpgradeMessage(message)
 
         return HStack(spacing: Theme.spacingSM) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -843,21 +842,7 @@ struct ChatPanelView: View {
 
             Spacer()
 
-            if showsBillingUpgradeCTA {
-                Button {
-                    openPlansAndPacks()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "creditcard")
-                            .font(.caption2)
-                        Text("Plans & Packs")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                    .foregroundStyle(Theme.accent)
-                }
-                .buttonStyle(.plain)
-            } else if viewModel.lastFailedRequest != nil, auth.isAuthenticated {
+            if viewModel.lastFailedRequest != nil, auth.isAuthenticated {
                 Button {
                     Task { @MainActor in
                         guard let token = await auth.validAccessToken() else { return }
@@ -892,12 +877,8 @@ struct ChatPanelView: View {
     }
 
     private func isBillingUpgradeMessage(_ message: String) -> Bool {
-        let normalized = message.lowercased()
-        return normalized.contains("out of credits")
-            || normalized.contains("not enough credits")
-            || normalized.contains("don’t have enough credits")
-            || normalized.contains("don't have enough credits")
-            || normalized.contains("add credits or upgrade your plan")
+        _ = message.lowercased()
+        return false
     }
 
 }

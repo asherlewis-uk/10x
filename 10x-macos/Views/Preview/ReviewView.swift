@@ -173,13 +173,13 @@ struct ReviewView: View {
     private var submissionLimitWarnings: [String] {
         var warnings: [String] = []
         if promotionalCharacterCount > 170 {
-            warnings.append("Promotional text is over Apple’s 170 character limit.")
+            warnings.append("Promotional text is over 170 characters.")
         }
         if keywordCharacterCount > 100 {
-            warnings.append("Keywords are over Apple’s 100 character limit.")
+            warnings.append("Keywords are over 100 characters.")
         }
         if descriptionCharacterCount > 4000 {
-            warnings.append("Description is unusually long and may be hard to review quickly.")
+            warnings.append("Description is unusually long and may be hard to read.")
         }
         return warnings
     }
@@ -225,15 +225,15 @@ struct ReviewView: View {
                 assetsSection
             } else {
                 CenteredGenerationState(
-                    title: "No App Store assets yet",
-                    detail: "Generate the icon, description, and screenshots when you’re ready.",
-                    primaryTitle: viewModel.isGeneratingAppStoreReviewAssets ? "Generating…" : "Auto-Generate",
-                    secondaryTitle: "Update",
-                    primaryAction: triggerAssetGeneration,
-                    secondaryAction: triggerAssetGeneration,
+                    title: "No marketing assets yet",
+                    detail: "Marketing asset generation is not available in 11x. Use local export for any assets you create manually.",
+                    primaryTitle: "Generate Unavailable",
+                    secondaryTitle: "Learn More",
+                    primaryAction: {},
+                    secondaryAction: {},
                     statusMessage: reviewStatusMessage,
                     statusColor: reviewStatusColor,
-                    isRunning: viewModel.isGeneratingAppStoreReviewAssets
+                    isRunning: false
                 )
             }
         }
@@ -247,14 +247,14 @@ struct ReviewView: View {
             } else {
                 CenteredGenerationState(
                     title: "No legal drafts yet",
-                    detail: "Generate privacy, terms, and support pages from the project automatically.",
-                    primaryTitle: viewModel.isGeneratingAppStoreSubmission ? "Generating…" : "Auto-Generate",
-                    secondaryTitle: "Update",
-                    primaryAction: triggerLegalGeneration,
-                    secondaryAction: triggerLegalGeneration,
+                    detail: "App Store submission generation is not available in 11x. Edit drafts manually or export locally.",
+                    primaryTitle: "Generate Unavailable",
+                    secondaryTitle: "Learn More",
+                    primaryAction: {},
+                    secondaryAction: {},
                     statusMessage: submissionStatusMessage,
                     statusColor: submissionStatusColor,
-                    isRunning: viewModel.isGeneratingAppStoreSubmission
+                    isRunning: false
                 )
             }
         }
@@ -359,7 +359,7 @@ struct ReviewView: View {
                     .font(Theme.geist(22, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(2)
-                Text("Icon, description, and screenshots in one place.")
+                Text("Locally exported icon, description, and screenshots.")
                     .font(Theme.geist(12))
                     .foregroundStyle(Theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -369,19 +369,10 @@ struct ReviewView: View {
 
     private var compactAssetsActionGroup: some View {
         VStack(alignment: .trailing, spacing: Theme.spacingSM) {
-            Button {
-                triggerAssetGeneration()
-            } label: {
-                Label(
-                    viewModel.isGeneratingAppStoreReviewAssets
-                        ? "Generating…"
-                        : (hasGeneratedReviewAssets ? "Update Assets" : "Auto-Generate"),
-                    systemImage: "sparkles"
-                )
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .disabled(viewModel.isGeneratingAppStoreReviewAssets)
+            Text("Marketing asset generation is not available in 11x.")
+                .font(Theme.geist(12))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: Theme.spacingSM) {
                 Button {
@@ -411,7 +402,7 @@ struct ReviewView: View {
                     Text("Preview")
                         .font(Theme.geist(13, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Quick visual QA with screenshots first, then the full App Store description.")
+                    Text("Quick visual QA with screenshots first, then the full marketing description.")
                         .font(Theme.geist(11))
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -458,7 +449,7 @@ struct ReviewView: View {
                         Text("Full Description")
                             .font(Theme.geist(11, weight: .semibold))
                             .foregroundStyle(Theme.textSecondary)
-                        Text("App Store-style markdown preview with short paragraphs and compact lists.")
+                        Text("Markdown preview with short paragraphs and compact lists.")
                             .font(Theme.geist(11))
                             .foregroundStyle(Theme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -480,7 +471,7 @@ struct ReviewView: View {
                 }
 
                 if appStoreDescriptionPreviewText.isEmpty {
-                    Text("No App Store description yet.")
+                    Text("No marketing description yet.")
                         .font(Theme.geist(13))
                         .foregroundStyle(Theme.textSecondary)
                 } else {
@@ -542,19 +533,10 @@ struct ReviewView: View {
                 )
             }
 
-            Button {
-                triggerLegalGeneration()
-            } label: {
-                Label(
-                    viewModel.isGeneratingAppStoreSubmission
-                        ? "Generating…"
-                        : (hasGeneratedLegalDrafts ? "Update Drafts" : "Auto-Generate"),
-                    systemImage: "sparkles"
-                )
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(viewModel.isGeneratingAppStoreSubmission)
+            Text("App Store submission generation is not available in 11x. Edit drafts manually or export locally.")
+                .font(Theme.geist(12))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: Theme.spacingSM) {
                 Menu {
@@ -684,14 +666,10 @@ struct ReviewView: View {
                     .foregroundStyle(Theme.textPrimary)
 
                 HStack(spacing: Theme.spacingSM) {
-                    Button {
-                        triggerAssetGeneration()
-                    } label: {
-                        Label(hasGeneratedReviewAssets ? "Update Assets" : "Auto-Generate", systemImage: "sparkles")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.isGeneratingAppStoreReviewAssets)
-                    .help("Send a generation request to the agent. If another task is in progress, it will be queued.")
+                    Text("Marketing asset generation is not available in 11x.")
+                        .font(Theme.geist(12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Button {
                         viewModel.revealAppStoreReviewAssetsInFinder()
@@ -732,7 +710,7 @@ struct ReviewView: View {
 
             Group {
                 if descriptionText.isEmpty {
-                    Text("No App Store description yet.")
+                    Text("No marketing description yet.")
                         .font(Theme.geist(14))
                         .foregroundStyle(Theme.textSecondary)
                 } else {
@@ -760,7 +738,7 @@ struct ReviewView: View {
 
             Group {
                 if viewModel.appStoreReviewState.screenshots.isEmpty {
-                    Text("No App Store screenshots yet.")
+                    Text("No marketing screenshots yet.")
                         .font(Theme.geist(14))
                         .foregroundStyle(Theme.textSecondary)
                 } else {
@@ -927,20 +905,7 @@ struct ReviewView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
 
-                Button {
-                    Task {
-                        await persistEditableDraft()
-                        await viewModel.generateAppStoreSubmissionDrafts()
-                        syncEditableDraftFromViewModel()
-                    }
-                } label: {
-                    Label(hasGeneratedLegalDrafts ? "Update Drafts" : "Auto-Generate", systemImage: "doc.badge.gearshape")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(viewModel.isGeneratingAppStoreSubmission)
-
-                Text("Hosted publishing is not available in 11x. Use local export instead.")
+                Text("App Store submission generation is not available in 11x. Edit drafts manually or export locally.")
                     .font(Theme.geist(12))
                     .foregroundStyle(Theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -984,20 +949,7 @@ struct ReviewView: View {
                 }
 
                 HStack(spacing: Theme.spacingSM) {
-                    Button {
-                        Task {
-                            await persistEditableDraft()
-                            await viewModel.generateAppStoreSubmissionDrafts()
-                            syncEditableDraftFromViewModel()
-                        }
-                    } label: {
-                        Label(hasGeneratedLegalDrafts ? "Update Drafts" : "Auto-Generate", systemImage: "doc.badge.gearshape")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(viewModel.isGeneratingAppStoreSubmission)
-
-                    Text("Hosted publishing is not available in 11x. Use local export instead.")
+                    Text("App Store submission generation is not available in 11x. Edit drafts manually or export locally.")
                         .font(Theme.geist(12))
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1152,7 +1104,7 @@ struct ReviewView: View {
 
     private var linkReferencePanel: some View {
         VStack(alignment: .leading, spacing: Theme.spacingMD) {
-            panelHeading("Reference Links", detail: "Copy the exact values you’ll need in App Store Connect.")
+            panelHeading("Reference Links", detail: "Optional metadata for your own App Store submission workflow.")
 
             referenceRow(title: "Support Email", value: editableDraft.facts.supportEmail)
             referenceRow(title: "Website URL", value: editableDraft.facts.websiteURL)
@@ -1231,15 +1183,11 @@ struct ReviewView: View {
     }
 
     private func triggerAssetGeneration() {
-        viewModel.requestAppStoreReviewGeneration()
+        viewModel.appStoreReviewError = "Marketing asset generation is not available in 11x. Use local export instead."
     }
 
     private func triggerLegalGeneration() {
-        Task {
-            await persistEditableDraft()
-            await viewModel.generateAppStoreSubmissionDrafts()
-            syncEditableDraftFromViewModel()
-        }
+        viewModel.appStoreSubmissionError = "App Store submission generation is not available in 11x. Use local export instead."
     }
 
     private func publishCurrentDraft() {
@@ -1341,7 +1289,7 @@ private struct FocusedLegalDocumentWorkspace: View {
                     Text(selection.title)
                         .font(Theme.geist(16, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Focus on one hosted page at a time instead of scrolling through all three.")
+                    Text("Focus on one document at a time instead of scrolling through all three.")
                         .font(Theme.geist(11))
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1502,7 +1450,7 @@ private struct AppStoreFactsForm: View {
             )
             ConfirmationCard(
                 title: "Age Rating",
-                detail: "Age-rating guidance is ready to mirror in App Store Connect.",
+                detail: "Age-rating guidance for your own submission notes.",
                 key: "age_rating",
                 confirmations: $draft.confirmations
             )
@@ -1531,14 +1479,14 @@ private struct AppStoreMetadataEditor: View {
             VStack(alignment: .leading, spacing: Theme.spacingMD) {
                 fieldHeader(
                     title: "Description",
-                    detail: "Main App Store description. Keep the opening lines immediately useful.",
+                    detail: "Main marketing description. Keep the opening lines immediately useful.",
                     metric: "\(draft.generated.metadata.appStoreDescription.count) chars",
                     metricTint: Theme.textSecondary,
                     copyText: draft.generated.metadata.appStoreDescription,
                     copyLabel: "description"
                 )
                 MultiLineField(
-                    title: "App Store Description",
+                    title: "Marketing Description",
                     text: $draft.generated.metadata.appStoreDescription,
                     minHeight: 180
                 )
@@ -1588,7 +1536,7 @@ private struct AppStoreMetadataEditor: View {
         VStack(alignment: .leading, spacing: Theme.spacingMD) {
             fieldHeader(
                 title: "Promotional Text",
-                detail: "Short marketing line shown above the description.",
+                detail: "Short marketing line shown above the full description.",
                 metric: "\(draft.generated.metadata.promotionalText.count) / 170",
                 metricTint: draft.generated.metadata.promotionalText.count > 170 ? Theme.error : Theme.textSecondary,
                 copyText: draft.generated.metadata.promotionalText,

@@ -34,40 +34,9 @@ extension BuilderViewModel {
     private static let minimumReviewScreenshotCaptures = 3
 
     func requestAppStoreReviewGeneration() {
-        guard activeProject != nil else {
-            appStoreReviewStatus = nil
-            appStoreReviewError = "No active project."
-            return
-        }
-        guard let accessToken = sessionAccessToken else {
-            appStoreReviewStatus = nil
-            appStoreReviewError = "No active session. Open the project again before generating App Store assets."
-            return
-        }
-
-        let prompt = "Create an icon, screenshots, and description for this app."
-        let previousMode = mode
-        let willQueue = isGenerating || hasPendingUserResponse
-        mode = .build
-
-        if let error = sendMessage(
-            prompt,
-            accessToken: accessToken,
-            requiredSkillNames: ["app-store-assets"]
-        ) {
-            mode = previousMode
-            appStoreReviewStatus = nil
-            appStoreReviewError = error
-            return
-        }
-
-        if willQueue {
-            mode = previousMode
-        }
-        appStoreReviewError = nil
-        appStoreReviewStatus = willQueue
-            ? "Queued App Store generation request."
-            : "Sent App Store generation request."
+        // 11x local cockpit: App Store review asset generation is disabled.
+        appStoreReviewStatus = nil
+        appStoreReviewError = "Marketing asset generation is not available in 11x. Use local export instead."
     }
 
     func handleAppStoreReviewTool(_ input: AppStoreReviewToolInput) async -> String {
@@ -439,83 +408,17 @@ extension BuilderViewModel {
         brief: String?,
         sourceCaptures: [PreviewScreenCapture]
     ) async -> ReviewAssetGenerationOutcome {
-        let screenshotOrDescriptionAssets = requestedAssets.filter { $0 == .description || $0 == .screenshots }
-        guard !screenshotOrDescriptionAssets.isEmpty else {
-            return .success
-        }
-
-        let projectDir = localProjectPath ?? LocalProjectStore.projectRootDirectory(
-            projectName: project.name,
-            projectId: project.id
-        )
-        let toolExecutor = ToolExecutor(
-            workspaceRoot: project.workspaceDescriptor.workspaceRootURL(projectRoot: projectDir),
-            projectName: project.name,
-            targetName: XcodePreviewService.targetName(from: project.name),
-            currentMode: mode,
-            fileTree: [:],
-            appStoreDetailsUpdateHandler: { [weak self] update in
-                guard let self else { return "Error: App Store details update failed." }
-                return await self.updateAppStoreDetails(update, project: project)
-            },
-            screenCatalogHandler: { [weak self] in
-                guard let self else { return "Error: screen listing failed." }
-                return await self.reviewSourceCaptureCatalog(sourceCaptures)
-            }
-        )
-
-        let billingGroupId = currentBillingGroupId ?? UUID().uuidString
-        currentBillingGroupId = billingGroupId
-        appStoreReviewStatus = "Reviewing available screens..."
-
-        let outcome = await generationService.runGeneration(
-            systemPrompt: reviewAgentSystemPrompt(requestedAssets: screenshotOrDescriptionAssets),
-            claudeMessages: [[
-                "role": "user",
-                "content": reviewAgentContentBlocks(
-                    project: project,
-                    requestedAssets: screenshotOrDescriptionAssets,
-                    brief: brief,
-                    sourceCaptures: sourceCaptures
-                ),
-            ]],
-            tools: reviewAgentTools(for: screenshotOrDescriptionAssets),
-            toolExecutor: toolExecutor,
-            accessToken: accessToken,
-            projectId: project.id,
-            sessionId: activeChat?.id,
-            billingGroupId: billingGroupId,
-            billingMessagePreview: "Generate App Store assets"
-        ) { [weak self] event in
-            guard let self else { return }
-            switch event {
-            case .status(let status):
-                let detail = status.detail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                self.appStoreReviewStatus = detail.isEmpty
-                    ? status.title
-                    : "\(status.title): \(detail)"
-            case .toolCallStart(_, let name):
-                self.appStoreReviewStatus = BuilderToolPresentation.shortLabel(name: name)
-            case .toolCallUpdate(_, let label, _):
-                self.appStoreReviewStatus = label
-            case .error(let message):
-                self.appStoreReviewError = message
-                self.appStoreReviewStatus = nil
-            default:
-                break
-            }
-        }
-
-        switch outcome {
-        case .completed:
-            appStoreReviewError = nil
-            return .success
-        case .failed(let message):
-            let errorMessage = "Error generating App Store assets: \(message)"
-            appStoreReviewError = errorMessage
-            appStoreReviewStatus = nil
-            return .failure(errorMessage)
-        }
+        // 11x local cockpit: agent-driven App Store marketing asset generation is disabled.
+        // The local renderer and export paths remain available for any manually created assets.
+        _ = accessToken
+        _ = project
+        _ = requestedAssets
+        _ = brief
+        _ = sourceCaptures
+        let message = "Marketing asset generation is not available in 11x. Use local export instead."
+        appStoreReviewError = message
+        appStoreReviewStatus = nil
+        return .failure(message)
     }
 
     private func generateReviewIconAsset(

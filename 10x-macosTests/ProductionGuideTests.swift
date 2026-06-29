@@ -37,14 +37,12 @@ final class ProductionGuideTests: XCTestCase {
 
         XCTAssertTrue(guide.markdown.contains(ProductionGuideBuilder.generatedMarker))
         XCTAssertTrue(guide.markdown.contains("`OPENAI_API_KEY`"))
-        XCTAssertTrue(guide.markdown.contains("`PUBLIC_API_BASE_URL`"))
-        XCTAssertTrue(guide.markdown.contains("where auth, secrets, and durable data should live"))
-        XCTAssertTrue(guide.markdown.contains("Supabase"))
-        XCTAssertTrue(guide.markdown.contains("Supabase Edge Functions"))
-        XCTAssertTrue(guide.markdown.contains("Use 10x Backend When"))
-        XCTAssertTrue(guide.markdown.contains("`supabase/functions/<name>/index.ts`"))
-        XCTAssertTrue(guide.markdown.contains("Move OpenAI traffic behind your backend"))
-        XCTAssertTrue(guide.markdown.contains("Confirm backend secrets are synced remotely before TestFlight"))
-        XCTAssertTrue(guide.markdown.contains("TestFlight"))
+        XCTAssertTrue(guide.markdown.contains("`OPENAI_BASE_URL`") || guide.markdown.contains("`PUBLIC_API_BASE_URL`"))
+        XCTAssertTrue(guide.markdown.contains("Local Cockpit"))
+        XCTAssertTrue(guide.markdown.contains("SQLite"))
+        XCTAssertTrue(guide.markdown.contains("Keychain"))
+        XCTAssertTrue(guide.markdown.contains("Local Export"))
+        XCTAssertTrue(guide.markdown.contains("Export First"))
+        XCTAssertTrue(guide.markdown.contains("Use Your Own Release Pipeline"))
     }
 }
