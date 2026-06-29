@@ -43,3 +43,6 @@ output/
 .vercel
 
 .build-codex-integrations-core
+
+# Local agent runtime/cache state
+.agents/
