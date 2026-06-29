@@ -98,5 +98,8 @@ CREATE TABLE IF NOT EXISTS assets (
 );
 CREATE INDEX IF NOT EXISTS idx_assets_project_id ON assets(project_id);
 """,
+        "009_assets_deleted_at": """
+ALTER TABLE assets ADD COLUMN deleted_at TEXT;
+""",
     ]
 }

@@ -1118,3 +1118,69 @@ The following `Supabase*` symbols remain in active runtime code as temporary com
 - No `import Supabase` remains in `10x-macos/`, `10x-evals/`, `10x-macosTests/`, or `10x-evalsTests/`.
 - `Package.swift` no longer declares the `supabase-swift` package or the `Supabase` product dependency.
 - Supabase env vars (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) still appear in `Config.swift` as inert fallbacks and in legacy project environment variable handling; they no longer drive auth or runtime persistence.
+
+## Pass 05 — Local Filesystem Asset Storage
+
+### Pass Scope And Evidence
+
+Pass executed: Pass 05 only, local filesystem asset storage.
+
+Runtime behavior changed:
+
+- Added `LocalAssetStorage`, rooted by default at `AppIdentity.appSupportDirectory/assets`.
+- New uploaded attachments, generated review assets, preview screenshots, captured screenshots, thumbnails, and custom project icons now write bytes to the local asset filesystem and save metadata through `AssetRepository`.
+- Asset paths stored in SQLite are relative paths under the asset root, using `projects/<project_id>/...` layout.
+- `AssetRepository` now validates relative asset paths before persisting metadata and filters soft-deleted assets.
+- Existing legacy `tenx/` asset paths remain readable as fallback for offline reload compatibility.
+- Path traversal, absolute paths, home-relative paths, URL-style paths, backslashes, and NUL-containing paths are rejected before filesystem access.
+
+Files created:
+
+- `10x-macos/Services/LocalAssetStorage.swift`
+- `10x-macos/Services/DB/migrations/009_assets_deleted_at.sql`
+- `10x-macosTests/DB/LocalAssetStorageTests.swift`
+
+Files modified:
+
+- `10x-macos/Services/DB/MigrationSet.swift`
+- `10x-macos/Services/DB/Repositories/AssetRepository.swift`
+- `10x-macos/Services/LocalProjectStore.swift`
+- `10x-macos/ViewModels/BuilderViewModel+Preview.swift`
+- `10x-macos/ViewModels/BuilderViewModel+Review.swift`
+
+### Inventory Findings
+
+Existing local asset/storage paths inventoried:
+
+- `LocalProjectStore` attachments under legacy `tenx/chats/<chat_id>/messages/<message_id>/attachments/`.
+- `LocalProjectStore` preview screen, captured screen, review asset, thumbnail, and custom icon storage.
+- `BuilderViewModel+Preview` preview and captured-screen path creation.
+- `BuilderViewModel+Review` app-review icon and screenshot path creation.
+- `AssetRepository`, `008_assets.sql`, and SQLite migration registration.
+- `BuilderAttachmentImporter` attachment import path behavior.
+- Static scan for hosted storage strings, bucket references, and asset path call sites.
+
+Remaining hosted/cloud storage assumptions found:
+
+- `10x-macos/Services/Builder/BundledSkillsCatalog.swift` still contains generated-app guidance mentioning Supabase storage buckets.
+- `10x-macos/Services/Builder/BuilderToolDefinitions.swift` still contains tool-description examples around `storage.buckets`.
+- `10x-macosTests/BuilderIntegrationToolTests.swift` and `10x-macosTests/ProjectIntegrationSupportTests.swift` still assert generated-app Supabase storage guidance.
+- Xcode project resolution still includes the Supabase package in the build graph as a pre-existing project-file lag from Pass 04; the active SwiftPM manifest no longer declares Supabase.
+
+Those remaining findings were inventoried but not broadly removed in Pass 05 because this pass is limited to local 11x asset persistence and asset portability hooks.
+
+### Verification
+
+- `git diff --check` passed.
+- `xcrun swift test --filter LocalAssetStorageTests` passed: 5 tests, 0 failures.
+- `xcrun swift test --filter 'LocalAssetStorageTests|CockpitDatabaseTests|LocalProjectStoreEnvironmentTests|AppIdentityIsolationTests'` passed: 18 tests, 0 failures.
+- `xcodebuild -project 10x-macos.xcodeproj -scheme 10x-macos -configuration Debug -derivedDataPath .derivedData/10x-macos build CODE_SIGNING_ALLOWED=NO` passed and produced `.derivedData/10x-macos/Build/Products/Debug/11x.app`.
+- Static inventory scan confirmed the new local asset paths and the remaining generated-app Supabase bucket guidance listed above.
+
+### Remaining Notes
+
+- Full hosted export/deploy replacement was not implemented in this pass.
+- Provider reseat was not started.
+- Chat message JSON still retains inline attachment payload data for existing UI/model-context behavior; filesystem materialization is now routed through local asset storage for new files.
+- Legacy `tenx/` state/index JSON remains local UI metadata for compatibility; new asset bytes are rooted under `assets/`.
+- Export inclusion of required assets remains a later-pass requirement; Pass 05 only establishes portable local paths and metadata hooks.

@@ -91,6 +91,8 @@ struct ProjectSnapshot: Codable, Sendable {
 /// Persists project conversation data locally for instant loading.
 /// Stores data in the project's tenx/ directory alongside the generated code.
 actor LocalProjectStore {
+    private let assetStorage = LocalAssetStorage()
+
     nonisolated static var baseDirectory: URL {
         AppIdentity.appSupportDirectory
     }
@@ -146,8 +148,11 @@ actor LocalProjectStore {
         projectId: String,
         relativePath: String
     ) -> URL {
-        tenxDirectory(projectName: projectName, projectId: projectId)
-            .appendingPathComponent(relativePath)
+        assetURLOrLegacyTenxURL(
+            projectName: projectName,
+            projectId: projectId,
+            relativePath: relativePath
+        )
     }
 
     private func ensureDir(_ url: URL) throws {
@@ -180,8 +185,18 @@ actor LocalProjectStore {
         return normalized
     }
 
-    private func relativeAttachmentPath(for attachment: BuilderMessageAttachment, messageId: String) -> String {
-        "attachments/\(messageId)/\(attachment.id)-\(safeAttachmentFilename(attachment.filename))"
+    private func relativeAttachmentPath(
+        for attachment: BuilderMessageAttachment,
+        messageId: String,
+        projectId: String,
+        chatId: String
+    ) -> String {
+        LocalAssetStorage.relativePath(
+            projectId: projectId,
+            kind: .upload,
+            filename: "\(attachment.id)-\(safeAttachmentFilename(attachment.filename))",
+            subdirectories: [chatId, messageId]
+        )
     }
 
     private func relativePath(of url: URL, relativeTo baseURL: URL) -> String? {
@@ -226,8 +241,11 @@ actor LocalProjectStore {
         projectId: String,
         relativePath: String
     ) -> URL {
-        tenxDirectory(projectName: projectName, projectId: projectId)
-            .appendingPathComponent(relativePath)
+        assetURLOrLegacyTenxURL(
+            projectName: projectName,
+            projectId: projectId,
+            relativePath: relativePath
+        )
     }
 
     private func environmentVariablesURL(projectName: String, projectId: String) -> URL {
@@ -238,6 +256,57 @@ actor LocalProjectStore {
     private func dotEnvURL(projectName: String, projectId: String) -> URL {
         projectRootDir(projectName: projectName, projectId: projectId)
             .appendingPathComponent(".env.local")
+    }
+
+    private nonisolated static func assetURLOrLegacyTenxURL(
+        projectName: String,
+        projectId: String,
+        relativePath: String
+    ) -> URL {
+        if LocalAssetStorage.isPortableAssetPath(relativePath),
+           let url = try? LocalAssetStorage.resolvedAssetURL(relativePath: relativePath) {
+            return url
+        }
+
+        return legacyTenxAssetURL(
+            projectName: projectName,
+            projectId: projectId,
+            relativePath: relativePath
+        )
+    }
+
+    private nonisolated static func legacyTenxAssetURL(
+        projectName: String,
+        projectId: String,
+        relativePath: String
+    ) -> URL {
+        let safeRelativePath = (try? LocalAssetStorage.normalizedRelativePath(relativePath))
+            ?? "__invalid_asset_path__"
+        return tenxDirectory(projectName: projectName, projectId: projectId)
+            .appendingPathComponent(safeRelativePath)
+    }
+
+    private nonisolated static func thumbnailRelativePath(projectId: String) -> String {
+        LocalAssetStorage.relativePath(
+            projectId: projectId,
+            kind: .preview,
+            filename: "thumbnail.png",
+            subdirectories: ["thumbnails"]
+        )
+    }
+
+    private nonisolated static func customIconRelativePath(projectId: String) -> String {
+        LocalAssetStorage.relativePath(
+            projectId: projectId,
+            kind: .generated,
+            filename: "custom-icon.png",
+            subdirectories: ["project-icons"]
+        )
+    }
+
+    @MainActor
+    private static func pngData(from image: NSImage) -> Data? {
+        image.pngData
     }
 
     private func normalizedEnvironmentVariable(
@@ -581,11 +650,21 @@ actor LocalProjectStore {
     private func materializeAttachment(
         _ attachment: BuilderMessageAttachment,
         messageId: String,
-        chatDirectory: URL
-    ) throws -> (attachment: BuilderMessageAttachment, url: URL)? {
-        let relativePath = normalizedAttachmentRelativePath(attachment.storageRelativePath ?? "")
-            ?? relativeAttachmentPath(for: attachment, messageId: messageId)
-        let fileURL = chatDirectory.appendingPathComponent(relativePath)
+        chatDirectory: URL,
+        projectId: String,
+        chatId: String
+    ) async throws -> (attachment: BuilderMessageAttachment, url: URL)? {
+        let storedRelativePath = attachment.storageRelativePath ?? ""
+        let legacyRelativePath = normalizedAttachmentRelativePath(storedRelativePath)
+        let relativePath = LocalAssetStorage.isPortableAssetPath(storedRelativePath)
+            ? try LocalAssetStorage.normalizedRelativePath(storedRelativePath)
+            : relativeAttachmentPath(
+                for: attachment,
+                messageId: messageId,
+                projectId: projectId,
+                chatId: chatId
+            )
+        let fileURL = try LocalAssetStorage.resolvedAssetURL(relativePath: relativePath)
         let updatedAttachment = attachment.storageRelativePath == relativePath
             ? attachment
             : attachment.withStorageRelativePath(relativePath)
@@ -594,10 +673,19 @@ actor LocalProjectStore {
             return (updatedAttachment, fileURL)
         }
 
-        guard let data = attachment.fileData else { return nil }
+        let legacyData = legacyRelativePath.flatMap { relativePath -> Data? in
+            let legacyURL = chatDirectory.appendingPathComponent(relativePath)
+            return try? Data(contentsOf: legacyURL)
+        }
+        guard let data = legacyData ?? attachment.fileData else { return nil }
 
-        try ensureDir(fileURL.deletingLastPathComponent())
-        try data.write(to: fileURL, options: .atomic)
+        _ = try await assetStorage.writeAsset(
+            projectId: projectId,
+            kind: .upload,
+            relativePath: relativePath,
+            mimeType: attachment.mediaType,
+            data: data
+        )
 
         return (updatedAttachment, fileURL)
     }
@@ -715,7 +803,7 @@ actor LocalProjectStore {
         projectName: String,
         projectId: String,
         chatId: String
-    ) -> [BuilderMessage] {
+    ) async -> [BuilderMessage] {
         let chatDirectory = chatDir(projectName: projectName, projectId: projectId, chatId: chatId)
         let attachmentsDirectory = chatDirectory.appendingPathComponent("attachments", isDirectory: true)
 
@@ -728,22 +816,28 @@ actor LocalProjectStore {
             try ensureDir(attachmentsDirectory)
 
             var referencedRelativePaths: Set<String> = []
-            let updatedMessages = try messages.map { message in
+            var updatedMessages: [BuilderMessage] = []
+            for message in messages {
                 var updatedMessage = message
-                updatedMessage.attachments = try message.attachments.map { attachment in
-                    guard let materialized = try materializeAttachment(
+                var updatedAttachments: [BuilderMessageAttachment] = []
+                for attachment in message.attachments {
+                    guard let materialized = try await materializeAttachment(
                         attachment,
                         messageId: message.id,
-                        chatDirectory: chatDirectory
+                        chatDirectory: chatDirectory,
+                        projectId: projectId,
+                        chatId: chatId
                     ) else {
-                        return attachment
+                        updatedAttachments.append(attachment)
+                        continue
                     }
                     if let relativePath = materialized.attachment.storageRelativePath {
                         referencedRelativePaths.insert(relativePath)
                     }
-                    return materialized.attachment
+                    updatedAttachments.append(materialized.attachment)
                 }
-                return updatedMessage
+                updatedMessage.attachments = updatedAttachments
+                updatedMessages.append(updatedMessage)
             }
 
             try pruneAttachments(in: chatDirectory, keeping: referencedRelativePaths)
@@ -760,11 +854,17 @@ actor LocalProjectStore {
         projectName: String,
         projectId: String,
         chatId: String
-    ) -> (attachment: BuilderMessageAttachment, url: URL)? {
+    ) async -> (attachment: BuilderMessageAttachment, url: URL)? {
         let chatDirectory = chatDir(projectName: projectName, projectId: projectId, chatId: chatId)
 
         do {
-            return try materializeAttachment(attachment, messageId: messageId, chatDirectory: chatDirectory)
+            return try await materializeAttachment(
+                attachment,
+                messageId: messageId,
+                chatDirectory: chatDirectory,
+                projectId: projectId,
+                chatId: chatId
+            )
         } catch {
             print("Failed to resolve attachment file: \(error)")
             return nil
@@ -1055,16 +1155,26 @@ actor LocalProjectStore {
         capture: PreviewScreenCapture,
         projectName: String,
         projectId: String
-    ) {
+    ) async {
         do {
-            guard let png = image.pngData else { return }
-            let imageURL = Self.previewScreenImageURL(
-                projectName: projectName,
-                projectId: projectId,
-                relativePath: capture.relativeImagePath
-            )
-            try ensureDir(imageURL.deletingLastPathComponent())
-            try png.write(to: imageURL, options: .atomic)
+            guard let png = await Self.pngData(from: image) else { return }
+            if LocalAssetStorage.isPortableAssetPath(capture.relativeImagePath) {
+                _ = try await assetStorage.writeAsset(
+                    projectId: projectId,
+                    kind: .preview,
+                    relativePath: capture.relativeImagePath,
+                    mimeType: "image/png",
+                    data: png
+                )
+            } else {
+                let imageURL = Self.previewScreenImageURL(
+                    projectName: projectName,
+                    projectId: projectId,
+                    relativePath: capture.relativeImagePath
+                )
+                try ensureDir(imageURL.deletingLastPathComponent())
+                try png.write(to: imageURL, options: .atomic)
+            }
         } catch {
             print("Failed to save preview screen image: \(error)")
         }
@@ -1154,16 +1264,26 @@ actor LocalProjectStore {
         relativePath: String,
         projectName: String,
         projectId: String
-    ) {
+    ) async {
         do {
-            guard let png = image.pngData else { return }
-            let imageURL = Self.reviewAssetImageURL(
-                projectName: projectName,
-                projectId: projectId,
-                relativePath: relativePath
-            )
-            try ensureDir(imageURL.deletingLastPathComponent())
-            try png.write(to: imageURL, options: .atomic)
+            guard let png = await Self.pngData(from: image) else { return }
+            if LocalAssetStorage.isPortableAssetPath(relativePath) {
+                _ = try await assetStorage.writeAsset(
+                    projectId: projectId,
+                    kind: .export,
+                    relativePath: relativePath,
+                    mimeType: "image/png",
+                    data: png
+                )
+            } else {
+                let imageURL = Self.reviewAssetImageURL(
+                    projectName: projectName,
+                    projectId: projectId,
+                    relativePath: relativePath
+                )
+                try ensureDir(imageURL.deletingLastPathComponent())
+                try png.write(to: imageURL, options: .atomic)
+            }
         } catch {
             print("Failed to save review asset image: \(error)")
         }
@@ -1234,51 +1354,74 @@ actor LocalProjectStore {
 
     // MARK: - Thumbnail
 
-    func saveThumbnail(_ image: NSImage, projectName: String, projectId: String) {
+    func saveThumbnail(_ image: NSImage, projectName: String, projectId: String) async {
         do {
-            let dir = tenxDir(projectName: projectName, projectId: projectId)
-            try ensureDir(dir)
-            guard let tiff = image.tiffRepresentation,
-                  let rep = NSBitmapImageRep(data: tiff),
-                  let png = rep.representation(using: .png, properties: [:]) else { return }
-            try png.write(to: dir.appendingPathComponent("thumbnail.png"))
+            guard let png = await Self.pngData(from: image) else { return }
+            _ = try await assetStorage.writeAsset(
+                projectId: projectId,
+                kind: .preview,
+                relativePath: Self.thumbnailRelativePath(projectId: projectId),
+                mimeType: "image/png",
+                data: png
+            )
         } catch {
             print("Failed to save thumbnail: \(error)")
         }
     }
 
     nonisolated func loadThumbnail(projectName: String, projectId: String) -> NSImage? {
-        let file = Self.tenxDirectory(projectName: projectName, projectId: projectId)
+        if let assetURL = try? LocalAssetStorage.resolvedAssetURL(
+            relativePath: Self.thumbnailRelativePath(projectId: projectId)
+        ),
+           let image = NSImage(contentsOf: assetURL) {
+            return image
+        }
+
+        let legacyFile = Self.tenxDirectory(projectName: projectName, projectId: projectId)
             .appendingPathComponent("thumbnail.png")
-        return NSImage(contentsOf: file)
+        return NSImage(contentsOf: legacyFile)
     }
 
     // MARK: - Custom Project Icon
 
-    func saveCustomIcon(_ image: NSImage, projectName: String, projectId: String) {
+    func saveCustomIcon(_ image: NSImage, projectName: String, projectId: String) async {
         do {
-            let dir = tenxDir(projectName: projectName, projectId: projectId)
-            try ensureDir(dir)
-            guard let tiff = image.tiffRepresentation,
-                  let rep = NSBitmapImageRep(data: tiff),
-                  let png = rep.representation(using: .png, properties: [:]) else { return }
-            try png.write(to: dir.appendingPathComponent("custom-icon.png"))
+            guard let png = await Self.pngData(from: image) else { return }
+            _ = try await assetStorage.writeAsset(
+                projectId: projectId,
+                kind: .generated,
+                relativePath: Self.customIconRelativePath(projectId: projectId),
+                mimeType: "image/png",
+                data: png
+            )
         } catch {
             print("Failed to save custom icon: \(error)")
         }
     }
 
     func loadCustomIcon(projectName: String, projectId: String) -> NSImage? {
-        let file = tenxDir(projectName: projectName, projectId: projectId)
+        if let assetURL = try? LocalAssetStorage.resolvedAssetURL(
+            relativePath: Self.customIconRelativePath(projectId: projectId)
+        ),
+           let image = NSImage(contentsOf: assetURL) {
+            return image
+        }
+
+        let legacyFile = tenxDir(projectName: projectName, projectId: projectId)
             .appendingPathComponent("custom-icon.png")
-        return NSImage(contentsOf: file)
+        return NSImage(contentsOf: legacyFile)
     }
 
     func deleteCustomIcon(projectName: String, projectId: String) {
         do {
-            let file = tenxDir(projectName: projectName, projectId: projectId)
+            if let assetURL = try? LocalAssetStorage.resolvedAssetURL(
+                relativePath: Self.customIconRelativePath(projectId: projectId)
+            ) {
+                try removeIfExists(assetURL)
+            }
+            let legacyFile = tenxDir(projectName: projectName, projectId: projectId)
                 .appendingPathComponent("custom-icon.png")
-            try removeIfExists(file)
+            try removeIfExists(legacyFile)
         } catch {
             print("Failed to delete custom icon: \(error)")
         }

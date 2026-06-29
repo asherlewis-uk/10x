@@ -575,7 +575,12 @@ extension BuilderViewModel {
 
             let timestamp = BuilderChat.timestamp()
             var nextState = appStoreReviewState
-            let relativePath = "app-store-review/icon-1024.png"
+            let relativePath = LocalAssetStorage.relativePath(
+                projectId: project.id,
+                kind: .export,
+                filename: "icon-1024.png",
+                subdirectories: ["app-store-review"]
+            )
             await localStore.saveReviewAssetImage(
                 generatedIconImage,
                 relativePath: relativePath,
@@ -999,7 +1004,12 @@ extension BuilderViewModel {
                 continue
             }
 
-            let relativePath = "app-store-review/screenshots/\(safeSlug(from: spec.id))-\(safeSlug(from: spec.headline)).png"
+            let relativePath = LocalAssetStorage.relativePath(
+                projectId: project.id,
+                kind: .export,
+                filename: "\(safeSlug(from: spec.id))-\(safeSlug(from: spec.headline)).png",
+                subdirectories: ["app-store-review", "screenshots"]
+            )
             await localStore.saveReviewAssetImage(
                 image,
                 relativePath: relativePath,

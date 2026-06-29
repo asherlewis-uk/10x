@@ -138,7 +138,8 @@ extension BuilderViewModel {
         perceptualHash: UInt64,
         pixelWidth: Int,
         pixelHeight: Int,
-        viewName: String
+        viewName: String,
+        projectId: String
     ) -> PreviewScreenCapture? {
         if let existingIndex = matchingPreviewScreenIndex(
             for: viewName,
@@ -179,7 +180,12 @@ extension BuilderViewModel {
         }
 
         let capture = PreviewScreenCapture(
-            relativeImagePath: "preview-screens/\(UUID().uuidString).png",
+            relativeImagePath: LocalAssetStorage.relativePath(
+                projectId: projectId,
+                kind: .preview,
+                filename: "\(UUID().uuidString).png",
+                subdirectories: ["preview-screens"]
+            ),
             perceptualHash: perceptualHash,
             pixelWidth: pixelWidth,
             pixelHeight: pixelHeight,
@@ -675,7 +681,12 @@ extension BuilderViewModel {
         }
 
         let capture = PreviewScreenCapture(
-            relativeImagePath: "captured-screens/\(UUID().uuidString).png",
+            relativeImagePath: LocalAssetStorage.relativePath(
+                projectId: project.id,
+                kind: .preview,
+                filename: "\(UUID().uuidString).png",
+                subdirectories: ["captured-screens"]
+            ),
             perceptualHash: perceptualHash,
             pixelWidth: pixelWidth,
             pixelHeight: pixelHeight,
@@ -823,7 +834,8 @@ extension BuilderViewModel {
             perceptualHash: perceptualHash,
             pixelWidth: pixelWidth,
             pixelHeight: pixelHeight,
-            viewName: resolvedViewName
+            viewName: resolvedViewName,
+            projectId: project.id
         ) else {
             return false
         }
