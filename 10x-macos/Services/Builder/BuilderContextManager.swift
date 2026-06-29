@@ -30,16 +30,7 @@ final class BuilderContextManager {
         let input: [String: Any]
     }
 
-    private struct TokenCountResponse: Decodable {
-        let inputTokens: Int
-
-        enum CodingKeys: String, CodingKey {
-            case inputTokens = "input_tokens"
-        }
-    }
-
-    private let api = APIClient()
-    private let defaultModel = "claude-opus-4-7"
+    private let defaultModel = Config.openAIModel
 
     private let turnSoftLimitTokens = 34_000
     private let turnTargetTokens = 26_000
@@ -947,36 +938,17 @@ final class BuilderContextManager {
         model: String,
         accessToken: String
     ) async -> Int? {
-        var payload: [String: Any] = [
-            "system": system,
-            "messages": messages,
-            "tools": tools,
-            "model": model,
-        ]
-        if let toolChoice = requestOptions.toolChoice {
-            payload["tool_choice"] = toolChoice
-        }
-        if let thinking = requestOptions.thinking {
-            payload["thinking"] = thinking
-        }
-        if let outputConfig = requestOptions.outputConfig {
-            payload["output_config"] = outputConfig
-        }
-        if let cacheControl = requestOptions.cacheControl {
-            payload["cache_control"] = cacheControl
-        }
-
-        do {
-            let response: TokenCountResponse = try await api.post(
-                APIClient.builder("claude/count-tokens"),
-                json: payload,
-                accessToken: accessToken
-            )
-            return response.inputTokens
-        } catch {
-            print("[10x] Token count failed: \(error.localizedDescription)")
-            return nil
-        }
+        // 11x local cockpit: exact token counting no longer depends on a vendor backend.
+        // Return a local approximation so context budgets remain bounded.
+        _ = model
+        _ = accessToken
+        return approximateRequestTokens(
+            system: system,
+            messages: messages,
+            tools: tools,
+            requestOptions: requestOptions,
+            maxTokens: 64_000
+        )
     }
 
     private func extractArtifacts(from timeline: [BuilderChatTimelineItem]) -> [BuilderContextArtifact] {

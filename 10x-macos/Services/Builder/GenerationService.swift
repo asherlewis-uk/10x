@@ -38,10 +38,15 @@ enum GenerationRunOutcome: Sendable {
 /// Calls the thin API proxy, parses tool_use blocks, executes tools locally,
 /// and sends results back — repeating until Claude is done.
 actor GenerationService {
-    private let api = APIClient()
-    private let contextManager = BuilderContextManager()
+    private let providerAdapter: OpenAIProviderAdapter
+    private let contextManager: BuilderContextManager
+
+    init(providerAdapter: OpenAIProviderAdapter = OpenAIProviderAdapter(), contextManager: BuilderContextManager = BuilderContextManager()) {
+        self.providerAdapter = providerAdapter
+        self.contextManager = contextManager
+    }
     private let maxIterations = 80
-    private let claudeProxyMaxTokens = 64_000
+    private let providerMaxTokens = 64_000
 
     struct RequestOptions: @unchecked Sendable {
         let toolChoice: [String: Any]?
@@ -104,9 +109,9 @@ actor GenerationService {
     ) async -> GenerationRunOutcome {
         var messages = claudeMessages
         var pendingToolChoice = requestOptions.toolChoice
-        let effectiveMaxTokens = min(max(maxTokens, 1), claudeProxyMaxTokens)
+        let effectiveMaxTokens = min(max(maxTokens, 1), providerMaxTokens)
         print(
-            "[billing-debug] generation.run.start billingGroupId=\(billingGroupId) sessionId=\(sessionId ?? "nil") projectId=\(projectId ?? "nil") initialMessageCount=\(messages.count) toolCount=\(tools.count) maxTokens=\(effectiveMaxTokens) preview=\(billingMessagePreview ?? "")"
+            "[provider] generation.run.start billingGroupId=\(billingGroupId) sessionId=\(sessionId ?? "nil") projectId=\(projectId ?? "nil") initialMessageCount=\(messages.count) toolCount=\(tools.count) maxTokens=\(effectiveMaxTokens) preview=\(billingMessagePreview ?? "")"
         )
         // Claude API requires the last message to be role "user".
         // Strip any trailing assistant messages (e.g. from prior generation history).
@@ -126,7 +131,7 @@ actor GenerationService {
                 cacheControl: requestOptions.cacheControl
             )
             print(
-                "[billing-debug] generation.iteration.start billingGroupId=\(billingGroupId) iteration=\(iteration) currentMessageCount=\(messages.count)"
+                "[provider] generation.iteration.start billingGroupId=\(billingGroupId) iteration=\(iteration) currentMessageCount=\(messages.count)"
             )
 
             await onEvent(.status(iteration == 1 ? .reviewingRecentWork : .workingFromLatestResults))
@@ -170,9 +175,9 @@ actor GenerationService {
                     provider: accessTokenProvider
                 )
                 print(
-                    "[billing-debug] generation.claude_call.begin billingGroupId=\(billingGroupId) iteration=\(iteration) estimatedTokens=\(preparedContext.exactTokensAfter ?? preparedContext.approximateTokensAfter) didCompact=\(preparedContext.didCompact)"
+                    "[provider] generation.provider_call.begin billingGroupId=\(billingGroupId) iteration=\(iteration) estimatedTokens=\(preparedContext.exactTokensAfter ?? preparedContext.approximateTokensAfter) didCompact=\(preparedContext.didCompact)"
                 )
-                streamResult = try await callClaudeProxy(
+                streamResult = try await callProvider(
                     system: systemPrompt,
                     messages: messages,
                     tools: tools,
@@ -197,7 +202,7 @@ actor GenerationService {
                     return toolUse.name
                 }.joined(separator: ",")
                 print(
-                    "[billing-debug] generation.claude_call.end billingGroupId=\(billingGroupId) iteration=\(iteration) textChars=\(streamResult.text.count) toolUses=\(streamResult.toolUses.count) tools=[\(toolSummary)]"
+                    "[provider] generation.provider_call.end billingGroupId=\(billingGroupId) iteration=\(iteration) textChars=\(streamResult.text.count) toolUses=\(streamResult.toolUses.count) tools=[\(toolSummary)]"
                 )
             } catch {
                 pendingToolChoice = nil
@@ -206,7 +211,7 @@ actor GenerationService {
                 }
                 let message = error.localizedDescription
                 print(
-                    "[billing-debug] generation.claude_call.error billingGroupId=\(billingGroupId) iteration=\(iteration) error=\(message)"
+                    "[provider] generation.provider_call.error billingGroupId=\(billingGroupId) iteration=\(iteration) error=\(message)"
                 )
                 await onEvent(.error(message: message))
                 return .failed(message: message)
@@ -218,7 +223,7 @@ actor GenerationService {
             if streamResult.toolUses.isEmpty {
                 let hasChanges = await toolExecutor.filesChanged.count > 0
                 print(
-                    "[billing-debug] generation.run.complete billingGroupId=\(billingGroupId) iterations=\(iteration) filesChanged=\(hasChanges)"
+                    "[provider] generation.run.complete billingGroupId=\(billingGroupId) iterations=\(iteration) filesChanged=\(hasChanges)"
                 )
                 await onEvent(.done(accumulatedText: accumulatedText, filesChanged: hasChanges))
                 return .completed
@@ -373,7 +378,7 @@ actor GenerationService {
         }
 
         print("[10x] Generation stopped after reaching max tool iterations (\(maxIterations)).")
-        print("[billing-debug] generation.run.max_iterations billingGroupId=\(billingGroupId) iterations=\(maxIterations)")
+        print("[provider] generation.run.max_iterations billingGroupId=\(billingGroupId) iterations=\(maxIterations)")
         let hasChanges = await toolExecutor.filesChanged.count > 0
         await onEvent(.done(accumulatedText: accumulatedText, filesChanged: hasChanges))
         let message = "Generation stopped after \(maxIterations) tool iterations without reaching a final answer. The model was likely looping. Retry with a narrower request if needed."
@@ -381,7 +386,24 @@ actor GenerationService {
         return .failed(message: message)
     }
 
-    // MARK: - Claude Proxy Call
+    private struct PreparedRequestContext {
+        let messages: [[String: Any]]
+        let approximateTokensBefore: Int
+        let approximateTokensAfter: Int
+        let exactTokensBefore: Int?
+        let exactTokensAfter: Int?
+        let didCompact: Bool
+        let summarizedMessageCount: Int
+        let keptRecentMessageCount: Int
+        let clearedToolResultCount: Int
+        let appliedStrategies: [String]
+    }
+
+    private struct ToolUse {
+        let id: String
+        let name: String
+        let input: [String: Any]
+    }
 
     private struct StreamResult {
         var text: String = ""
@@ -437,27 +459,11 @@ actor GenerationService {
         return normalized.contains("allow") || normalized.contains("approve") || normalized == "yes"
     }
 
-    private struct PreparedRequestContext {
-        let messages: [[String: Any]]
-        let approximateTokensBefore: Int
-        let approximateTokensAfter: Int
-        let exactTokensBefore: Int?
-        let exactTokensAfter: Int?
-        let didCompact: Bool
-        let summarizedMessageCount: Int
-        let keptRecentMessageCount: Int
-        let clearedToolResultCount: Int
-        let appliedStrategies: [String]
-    }
+    // MARK: - OpenAI-Compatible Provider Call
 
-    private struct ToolUse {
-        let id: String
-        let name: String
-        let input: [String: Any]
-    }
-
-    /// Call the Claude proxy and parse the NDJSON stream into text + tool_use blocks.
-    private func callClaudeProxy(
+    /// Calls the user-owned OpenAI-compatible provider and maps the streamed response
+    /// back to the internal generation event surface.
+    private func callProvider(
         system: String,
         messages: [[String: Any]],
         tools: [[String: Any]],
@@ -470,125 +476,76 @@ actor GenerationService {
         billingMessagePreview: String? = nil,
         onEvent: @MainActor @Sendable @escaping (GenerationEvent) async -> Void
     ) async throws -> StreamResult {
-        var body: [String: Any] = [
-            "system": system,
-            "messages": messages,
-            "tools": tools,
-            "max_tokens": maxTokens,
-            "idempotency_key": UUID().uuidString,
-            "billing_group_id": billingGroupId,
-        ]
-        if let billingMessagePreview, !billingMessagePreview.isEmpty {
-            body["billing_message_preview"] = billingMessagePreview
-        }
-        if let projectId {
-            body["project_id"] = projectId
-        }
-        if let sessionId {
-            body["session_id"] = sessionId
-        }
-        if let toolChoice = requestOptions.toolChoice {
-            body["tool_choice"] = toolChoice
-        }
-        if let thinking = requestOptions.thinking {
-            body["thinking"] = thinking
-        }
-        if let outputConfig = requestOptions.outputConfig {
-            body["output_config"] = outputConfig
-        }
-        if let cacheControl = requestOptions.cacheControl {
-            body["cache_control"] = cacheControl
-        }
+        // accessToken, projectId, sessionId, billingGroupId, and billingMessagePreview are
+        // preserved in the signature for call-site compatibility but are not used by the
+        // local provider adapter; billing/credits are not part of 11x local generation.
+        _ = accessToken
+        _ = projectId
+        _ = sessionId
+        _ = billingGroupId
+        _ = billingMessagePreview
 
         print(
-            "[billing-debug] generation.proxy.request billingGroupId=\(billingGroupId) sessionId=\(sessionId ?? "nil") projectId=\(projectId ?? "nil") messageCount=\(messages.count) toolCount=\(tools.count) maxTokens=\(maxTokens)"
+            "[provider] generation.provider.request messageCount=\(messages.count) toolCount=\(tools.count) maxTokens=\(maxTokens)"
         )
 
-        let rawLines = try await api.stream(
-            APIClient.builder("claude/stream"),
-            method: "POST",
-            json: body,
-            accessToken: accessToken
+        let eventStream = try await providerAdapter.stream(
+            systemPrompt: system,
+            messages: messages,
+            tools: tools,
+            toolChoice: requestOptions.toolChoice,
+            maxTokens: maxTokens
         )
 
         var result = StreamResult()
-        var currentBlockType: String?
-        var currentToolId = ""
-        var currentToolName = ""
-        var currentToolJson = ""
+        var toolArgumentsByIndex: [Int: String] = [:]
+        var toolInfoByIndex: [Int: (id: String, name: String)] = [:]
 
-        for try await line in rawLines {
-            guard let data = line.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let type = json["type"] as? String else {
-                continue
-            }
+        for try await event in eventStream {
+            switch event {
+            case .textDelta(let delta):
+                result.text += delta
+                await onEvent(.content(delta: delta))
 
-            switch type {
-            case "content_block_start":
-                if let block = json["content_block"] as? [String: Any],
-                   let blockType = block["type"] as? String {
-                    currentBlockType = blockType
-                    if blockType == "tool_use" {
-                        currentToolId = block["id"] as? String ?? ""
-                        currentToolName = block["name"] as? String ?? ""
-                        currentToolJson = ""
-                        await onEvent(.status(BuilderToolPresentation.generationStatus(name: currentToolName)))
-                    }
-                }
+            case .toolCallStart(let index, let id, let name):
+                toolArgumentsByIndex[index] = ""
+                toolInfoByIndex[index] = (id, name)
+                await onEvent(.status(BuilderToolPresentation.generationStatus(name: name)))
 
-            case "content_block_delta":
-                if let delta = json["delta"] as? [String: Any],
-                   let deltaType = delta["type"] as? String {
-                    if deltaType == "text_delta", let text = delta["text"] as? String {
-                        result.text += text
-                        await onEvent(.content(delta: text))
-                    } else if deltaType == "input_json_delta", let partial = delta["partial_json"] as? String {
-                        currentToolJson += partial
-                    }
-                }
+            case .toolCallDelta(let index, let partialArguments):
+                toolArgumentsByIndex[index, default: ""] += partialArguments
 
-            case "content_block_stop":
-                if currentBlockType == "tool_use" {
-                    let input: [String: Any]
-                    if let data = currentToolJson.data(using: .utf8),
-                       let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        input = parsed
-                    } else {
-                        input = [:]
-                    }
-                    await onEvent(.status(BuilderToolPresentation.generationStatus(name: currentToolName, input: input)))
-                    result.toolUses.append(ToolUse(id: currentToolId, name: currentToolName, input: input))
-                }
-                currentBlockType = nil
+            case .toolCallEnd(let index, let id, let name, let arguments):
+                let accumulatedArguments = arguments.isEmpty ? (toolArgumentsByIndex[index] ?? "") : arguments
+                let input = parseToolArguments(accumulatedArguments)
+                await onEvent(.status(BuilderToolPresentation.generationStatus(name: name, input: input)))
+                result.toolUses.append(ToolUse(id: id, name: name, input: input))
+                toolArgumentsByIndex.removeValue(forKey: index)
+                toolInfoByIndex.removeValue(forKey: index)
 
-            case "error":
-                let message = json["message"] as? String ?? "Unknown error"
+            case .error(let message):
                 throw GenerationError.apiError(message)
 
-            case "message_start":
-                await onEvent(.status(.workingThroughRequest))
-
-            case "message_delta":
-                if let delta = json["delta"] as? [String: Any],
-                   let stopReason = delta["stop_reason"] as? String,
-                   stopReason == "max_tokens" {
+            case .finishReason(let reason):
+                if reason == "max_tokens" {
                     throw GenerationError.apiError("Response was cut off (max tokens reached). Try breaking your request into smaller steps.")
                 }
-
-            case "message_stop":
-                break
-
-            default:
-                break
             }
         }
 
         print(
-            "[billing-debug] generation.proxy.response billingGroupId=\(billingGroupId) textChars=\(result.text.count) toolUses=\(result.toolUses.count)"
+            "[provider] generation.provider.response textChars=\(result.text.count) toolUses=\(result.toolUses.count)"
         )
 
         return result
+    }
+
+    private func parseToolArguments(_ raw: String) -> [String: Any] {
+        guard let data = raw.data(using: .utf8),
+              let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return [:]
+        }
+        return parsed
     }
 
     // MARK: - Helpers

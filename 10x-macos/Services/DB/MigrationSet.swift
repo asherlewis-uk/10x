@@ -101,5 +101,16 @@ CREATE INDEX IF NOT EXISTS idx_assets_project_id ON assets(project_id);
         "009_assets_deleted_at": """
 ALTER TABLE assets ADD COLUMN deleted_at TEXT;
 """,
+        "010_provider_configs": """
+CREATE TABLE IF NOT EXISTS provider_configs (
+    id TEXT PRIMARY KEY NOT NULL,
+    provider_type TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    base_url TEXT NOT NULL,
+    model TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+""",
     ]
 }

@@ -1184,3 +1184,82 @@ Those remaining findings were inventoried but not broadly removed in Pass 05 bec
 - Chat message JSON still retains inline attachment payload data for existing UI/model-context behavior; filesystem materialization is now routed through local asset storage for new files.
 - Legacy `tenx/` state/index JSON remains local UI metadata for compatibility; new asset bytes are rooted under `assets/`.
 - Export inclusion of required assets remains a later-pass requirement; Pass 05 only establishes portable local paths and metadata hooks.
+
+## Pass 06 — OpenAI-Compatible Provider Reseat
+
+### Pass Scope And Evidence
+
+Pass executed: Pass 06 only, OpenAI-compatible provider reseat.
+
+Runtime behavior changed:
+
+- Generation calls no longer go through a vendor backend `/builder/claude/stream` proxy.
+- `GenerationService` now uses an injected `OpenAIProviderAdapter` that calls the user-configured OpenAI-compatible endpoint directly.
+- `BuilderContextManager.countTokens` no longer depends on a backend `/builder/claude/count-tokens` endpoint; it returns a local approximation.
+- Provider metadata (`baseURL`, `model`) is stored in SQLite `provider_configs`.
+- Provider secrets (`OPENAI_API_KEY`) are stored in the OS keychain via `ProviderKeychainStore`.
+- `Config` exposes `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` as provider env/config keys.
+- `ProjectIntegrations` exposes `OPENAI_API_KEY` as a hosted (secret) field and `OPENAI_BASE_URL`/`OPENAI_MODEL` as client fields, with guidance updated for local/keychain storage.
+
+Files created:
+
+- `10x-macos/Services/Provider/ProviderConfig.swift`
+- `10x-macos/Services/Provider/ProviderKeychainStore.swift`
+- `10x-macos/Services/Provider/ProviderConfigRepository.swift`
+- `10x-macos/Services/Provider/OpenAIProviderAdapter.swift`
+- `10x-macos/Services/DB/migrations/010_provider_configs.sql`
+- `10x-macosTests/Provider/OpenAIProviderAdapterTests.swift`
+- `10x-macosTests/Provider/OpenAIProviderURLProtocolStub.swift`
+- `10x-macosTests/Provider/ProviderConfigRepositoryTests.swift`
+- `10x-macosTests/Provider/GenerationServiceProviderTests.swift`
+
+Files modified:
+
+- `10x-macos/Config.swift`
+- `10x-macos/Models/ProjectIntegrations.swift`
+- `10x-macos/Services/Builder/GenerationService.swift`
+- `10x-macos/Services/Builder/BuilderContextManager.swift`
+- `10x-macos/Services/DB/MigrationSet.swift`
+- `10x-macosTests/ProjectIntegrationSupportTests.swift`
+- `AGENTS.md` and `CLAUDE.md` (GitNexus index stats updated by `npx gitnexus analyze`)
+
+### Inventory Findings
+
+Existing provider assumptions inventoried:
+
+- `GenerationService` called `APIClient.builder("claude/stream")` and parsed Anthropic NDJSON events.
+- `BuilderContextManager.countTokens` called `APIClient.builder("claude/count-tokens")`.
+- `Config` lacked `OPENAI_BASE_URL` and `OPENAI_MODEL`; `API_BASE_URL` defaulted to `http://localhost:8000`.
+- `ProjectIntegrations` exposed only `OPENAI_API_KEY` with Supabase-flavored guidance.
+- No provider adapter boundary existed; no SQL table held provider metadata; no keychain namespace existed for provider secrets.
+- Request/response logs used `[billing-debug]` prefixes tied to credit-group semantics.
+
+Remaining vendor-provider runtime assumptions not removed in Pass 06:
+
+- Supabase management/auth code still exists in `10x-macos/Services/Supabase*` and `10x-macos/ViewModels` (to be removed in Pass 07 per master plan).
+- `EvalRunner` still attempts Supabase token refresh (eval harness, not the macOS app runtime).
+- Some tests still assert Supabase-specific behavior where those components are not yet removed.
+- `APIClient` remains in place for other (non-provider) legacy API surfaces; it was not modified because impact analysis showed CRITICAL blast radius (165 symbols).
+
+### Verification
+
+- `git diff --check` passed.
+- `xcrun swift test` passed: 185 tests, 0 failures.
+- `xcodebuild -project 10x-macos.xcodeproj -scheme 10x-macos -configuration Debug -derivedDataPath .derivedData/10x-macos build CODE_SIGNING_ALLOWED=NO` passed and produced `.derivedData/10x-macos/Build/Products/Debug/11x.app`.
+- Pass-specific tests added and passing:
+  - `OpenAIProviderAdapterTests`: custom base URL, invalid base URL setup error, missing API key setup error, mocked streaming text and tool call, no hardcoded vendor endpoint.
+  - `ProviderConfigRepositoryTests`: config persistence in SQLite, API key keychain storage, public metadata excludes secrets, validated config requires key.
+  - `GenerationServiceProviderTests`: generation uses mocked OpenAI-compatible adapter, not credits or vendor backend.
+
+### Remaining Notes
+
+- Full removal of Supabase/Superwall/billing code remains a later pass (Pass 07 per master plan).
+- `APIClient` was intentionally left untouched except for its continued use by non-provider legacy surfaces.
+- The provider adapter currently assumes OpenAI-compatible SSE streaming. Tool/function calling support is preserved by mapping Anthropic-style tool definitions to OpenAI `tools`/`function` schema.
+
+### Commit
+
+- `reseat(provider): add openai-compatible adapter` (commit `7854822`)
+- 19 files changed, 1407 insertions(+), 213 deletions(-)
+- `git diff --check` passed before commit.
+- No push performed.

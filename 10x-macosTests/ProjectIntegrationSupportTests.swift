@@ -302,14 +302,12 @@ final class ProjectIntegrationSupportTests: XCTestCase {
         let openAIFields = Set(openAI.fields.map(\.envKey))
         let supabaseFields = Set(supabase.fields.map(\.envKey))
 
-        XCTAssertEqual(openAIFields, Set(["OPENAI_API_KEY"]))
+        XCTAssertEqual(openAIFields, Set(["OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_MODEL"]))
         XCTAssertEqual(supabaseFields, Set(["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_PUBLISHABLE_KEY"]))
         XCTAssertEqual(Set(openAI.hostedFields.map(\.envKey)), Set(["OPENAI_API_KEY"]))
-        XCTAssertEqual(Set(openAI.clientFields.map(\.envKey)), Set<String>())
+        XCTAssertEqual(Set(openAI.clientFields.map(\.envKey)), Set(["OPENAI_BASE_URL", "OPENAI_MODEL"]))
         XCTAssertEqual(Set(supabase.clientFields.map(\.envKey)), supabaseFields)
         XCTAssertTrue(supabase.hostedFields.isEmpty)
-        XCTAssertFalse(openAIFields.contains("OPENAI_BASE_URL"))
-        XCTAssertFalse(openAIFields.contains("OPENAI_MODEL"))
         XCTAssertFalse(supabaseFields.contains("SUPABASE_MANAGEMENT_TOKEN"))
         XCTAssertFalse(supabaseFields.contains("SUPABASE_DB_PASSWORD"))
         XCTAssertFalse(supabaseFields.contains("SUPABASE_DB_URL"))
@@ -321,7 +319,11 @@ final class ProjectIntegrationSupportTests: XCTestCase {
 
         XCTAssertFalse(openAI.visibleGuidanceSections(values: [:]).isEmpty)
         XCTAssertTrue(
-            openAI.visibleGuidanceSections(values: ["OPENAI_API_KEY": validLegacyOpenAIKey]).isEmpty
+            openAI.visibleGuidanceSections(values: [
+                "OPENAI_API_KEY": validLegacyOpenAIKey,
+                "OPENAI_BASE_URL": "https://api.openai.com",
+                "OPENAI_MODEL": "gpt-4.1",
+            ]).isEmpty
         )
 
         XCTAssertFalse(supabase.visibleGuidanceSections(values: [:]).isEmpty)
@@ -331,18 +333,18 @@ final class ProjectIntegrationSupportTests: XCTestCase {
         let openAI = ProjectIntegrations.definition(for: .openAI)
         let status = openAI.capabilityStatuses(values: ["OPENAI_API_KEY": "sk-short"]).first
 
-        XCTAssertEqual(status?.label, "Backend OpenAI Key")
+        XCTAssertEqual(status?.label, "OpenAI API Key")
         XCTAssertEqual(status?.isReady, false)
-        XCTAssertTrue(status?.detail.contains("51 characters") == true)
+        XCTAssertTrue(status?.detail.contains("Legacy OpenAI API keys should be exactly 51 characters") == true)
     }
 
     func testOpenAIIntegrationAcceptsProjectScopedKeyShape() {
         let openAI = ProjectIntegrations.definition(for: .openAI)
         let status = openAI.capabilityStatuses(values: ["OPENAI_API_KEY": validProjectScopedOpenAIKey]).first
 
-        XCTAssertEqual(status?.label, "Backend OpenAI Key")
+        XCTAssertEqual(status?.label, "OpenAI API Key")
         XCTAssertEqual(status?.isReady, true)
-        XCTAssertEqual(status?.detail, "Backend OpenAI API key is configured.")
+        XCTAssertEqual(status?.detail, "OpenAI API key is configured.")
     }
 
     func testOpenAIIntegrationExplainsSafeStorage() {
@@ -350,11 +352,11 @@ final class ProjectIntegrationSupportTests: XCTestCase {
 
         XCTAssertEqual(
             openAI.fields.first?.description,
-            "Backend OpenAI API key synced to Supabase secrets. Use it for backend or server-side work, not client code."
+            "OpenAI-compatible API key. Stored in the OS keychain, never exposed to the UI or exported with the project."
         )
         XCTAssertTrue(openAI.fields.first?.helperText.contains("not in chat") == true)
         XCTAssertTrue(openAI.guidanceSections.first?.markdown.contains("not in chat") == true)
-        XCTAssertTrue(openAI.guidanceSections.first?.markdown.contains("Supabase secrets") == true)
+        XCTAssertTrue(openAI.guidanceSections.first?.markdown.contains("OS keychain") == true)
         XCTAssertEqual(openAI.fields.first?.scope, .hosted)
         XCTAssertTrue(ProjectIntegrations.definition(for: .supabase).fields.allSatisfy { $0.scope == .client })
     }
@@ -367,7 +369,7 @@ final class ProjectIntegrationSupportTests: XCTestCase {
         ).first
 
         XCTAssertEqual(status?.isReady, true)
-        XCTAssertEqual(status?.detail, "Backend OpenAI API key is configured in Supabase.")
+        XCTAssertEqual(status?.detail, "OpenAI API key is configured in a secure backend store.")
     }
 
     func testExplicitClientScopeOverridesSensitiveKeyHeuristic() {

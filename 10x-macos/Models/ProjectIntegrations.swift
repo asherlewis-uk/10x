@@ -80,26 +80,50 @@ struct ProjectIntegrationDefinition: Identifiable, Hashable {
         switch id {
         case .openAI:
             let apiKey = Self.trimmedValue(for: "OPENAI_API_KEY", in: values)
-            let validationMessage = ProjectIntegrations.validationMessage(
+            let baseURL = Self.trimmedValue(for: "OPENAI_BASE_URL", in: values)
+            let model = Self.trimmedValue(for: "OPENAI_MODEL", in: values)
+            let keyValidation = ProjectIntegrations.validationMessage(
                 for: .openAI,
                 envKey: "OPENAI_API_KEY",
                 value: apiKey
             )
             let hasRemoteKey = remoteHostedKeys.contains("OPENAI_API_KEY")
-            let isReady = (!apiKey.isEmpty && validationMessage == nil) || (apiKey.isEmpty && hasRemoteKey)
+            let isKeyReady = (!apiKey.isEmpty && keyValidation == nil) || (apiKey.isEmpty && hasRemoteKey)
 
-            return [
+            var statuses: [ProjectIntegrationCapabilityStatus] = []
+            statuses.append(
                 ProjectIntegrationCapabilityStatus(
-                    id: "openai-runtime",
-                    label: "Backend OpenAI Key",
+                    id: "openai-key",
+                    label: "OpenAI API Key",
                     detail: !apiKey.isEmpty
-                        ? (validationMessage ?? "Backend OpenAI API key is configured.")
+                        ? (keyValidation ?? "OpenAI API key is configured.")
                         : (hasRemoteKey
-                            ? "Backend OpenAI API key is configured in Supabase."
-                            : "Add `OPENAI_API_KEY` under Backend Secrets."),
-                    isReady: isReady
-                ),
-            ]
+                            ? "OpenAI API key is configured in a secure backend store."
+                            : "Add `OPENAI_API_KEY` under Provider Secrets."),
+                    isReady: isKeyReady
+                )
+            )
+            statuses.append(
+                ProjectIntegrationCapabilityStatus(
+                    id: "openai-base-url",
+                    label: "Provider Base URL",
+                    detail: baseURL.isEmpty
+                        ? "Set `OPENAI_BASE_URL` (e.g. https://api.openai.com or your local gateway)."
+                        : "Base URL: \(baseURL)",
+                    isReady: !baseURL.isEmpty && URL(string: baseURL) != nil
+                )
+            )
+            statuses.append(
+                ProjectIntegrationCapabilityStatus(
+                    id: "openai-model",
+                    label: "Model",
+                    detail: model.isEmpty
+                        ? "Set `OPENAI_MODEL` (e.g. gpt-4.1)."
+                        : "Model: \(model)",
+                    isReady: !model.isEmpty
+                )
+            )
+            return statuses
 
         case .supabase:
             let url = Self.trimmedValue(for: "SUPABASE_URL", in: values)
@@ -133,17 +157,35 @@ enum ProjectIntegrations {
     static let all: [ProjectIntegrationDefinition] = [
         .init(
             id: .openAI,
-            title: "OpenAI",
+            title: "OpenAI-compatible Provider",
             summary: "",
             fields: [
                 ProjectIntegrationField(
                     envKey: "OPENAI_API_KEY",
                     scope: .hosted,
                     label: "API Key",
-                    description: "Backend OpenAI API key synced to Supabase secrets. Use it for backend or server-side work, not client code.",
-                    helperText: "Paste it here, not in chat. Chat messages are persisted with the project conversation. Legacy `sk-...` keys are 51 characters; current `sk-proj-...` and `sk-admin-...` keys are much longer.",
+                    description: "OpenAI-compatible API key. Stored in the OS keychain, never exposed to the UI or exported with the project.",
+                    helperText: "Paste it here, not in chat. Chat messages are persisted with the project conversation.",
                     placeholder: "sk-...",
                     exampleValue: "sk-..."
+                ),
+                ProjectIntegrationField(
+                    envKey: "OPENAI_BASE_URL",
+                    scope: .client,
+                    label: "Base URL",
+                    description: "OpenAI-compatible base URL. Examples: https://api.openai.com, an Ollama OpenAI-compatible endpoint, vLLM, OpenRouter, or a local gateway.",
+                    helperText: "Must expose /v1/chat/completions.",
+                    placeholder: "https://api.openai.com",
+                    exampleValue: "https://api.openai.com"
+                ),
+                ProjectIntegrationField(
+                    envKey: "OPENAI_MODEL",
+                    scope: .client,
+                    label: "Model",
+                    description: "Model identifier passed to /v1/chat/completions.",
+                    helperText: "Examples: gpt-4.1, qwen2.5-coder:32b, mistral-large-latest.",
+                    placeholder: "gpt-4.1",
+                    exampleValue: "gpt-4.1"
                 ),
             ],
             guidanceSections: [
@@ -151,10 +193,10 @@ enum ProjectIntegrations {
                     id: "openai-credentials",
                     title: "",
                     markdown: """
-                    - Get a key from [OpenAI API keys](https://platform.openai.com/api-keys).
-                    - Paste the secret key in Backend Secrets, not in chat.
-                    - 10x syncs this value to Supabase secrets and keeps it out of project files.
-                    - Keep `OPENAI_API_KEY` off the client. Use Backend or another server-side path for real API calls.
+                    - Get a key from your provider (OpenAI, OpenRouter, a local gateway, etc.).
+                    - Paste the secret key in Provider Secrets, not in chat.
+                    - 11x stores the key in the OS keychain and keeps it out of project files, exports, and generated source.
+                    - `OPENAI_BASE_URL` and `OPENAI_MODEL` configure which provider and model 11x calls.
                     """
                 ),
             ]

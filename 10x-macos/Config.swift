@@ -89,6 +89,28 @@ enum Config {
             ?? "sb_publishable_your_key"
     }
 
+
+    // MARK: - Provider Configuration (OpenAI-compatible BYOK/local gateway)
+
+    static var openAIAPIKey: String {
+        ProcessInfo.processInfo.environment["OPENAI_API_KEY"]
+            ?? Bundle.main.infoDictionary?["OPENAI_API_KEY"] as? String
+            ?? ""
+    }
+
+    static var openAIBaseURL: String {
+        let raw = ProcessInfo.processInfo.environment["OPENAI_BASE_URL"]
+            ?? Bundle.main.infoDictionary?["OPENAI_BASE_URL"] as? String
+            ?? "https://api.openai.com"
+        return normalizedBaseURL(raw)
+    }
+
+    static var openAIModel: String {
+        ProcessInfo.processInfo.environment["OPENAI_MODEL"]
+            ?? Bundle.main.infoDictionary?["OPENAI_MODEL"] as? String
+            ?? "gpt-4.1"
+    }
+
     private static func boolValue(for key: String, defaultValue: Bool) -> Bool {
         let fallback = defaultValue ? "true" : "false"
         let rawValue = ProcessInfo.processInfo.environment[key]

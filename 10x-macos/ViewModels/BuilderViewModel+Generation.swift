@@ -599,7 +599,7 @@ extension BuilderViewModel {
     func continueAutomaticBuildFixIfPossible() {
         guard let error = lastPreviewCompileError else { return }
         print(
-            "[billing-debug] builder.auto_build_fix.check billingGroupId=\(currentBillingGroupId ?? "nil") failureCount=\(consecutiveAutomaticBuildFixFailures) hasError=true"
+            "[provider] builder.auto_build_fix.check billingGroupId=\(currentBillingGroupId ?? "nil") failureCount=\(consecutiveAutomaticBuildFixFailures) hasError=true"
         )
 
         let normalizedErrorSignature = BuilderBuildFixSupport.normalizedSignature(for: error)
@@ -630,7 +630,7 @@ extension BuilderViewModel {
             "[10x] Automatically sending preview/build error to agent (attempt \(consecutiveAutomaticBuildFixFailures + 1) of \(Self.automaticBuildFixFailureLimit))."
         )
         print(
-            "[billing-debug] builder.auto_build_fix.start billingGroupId=\(currentBillingGroupId ?? "nil") attempt=\(consecutiveAutomaticBuildFixFailures + 1)"
+            "[provider] builder.auto_build_fix.start billingGroupId=\(currentBillingGroupId ?? "nil") attempt=\(consecutiveAutomaticBuildFixFailures + 1)"
         )
         lastAutomaticBuildFixSignature = normalizedErrorSignature
         lastAutomaticBuildFixRevision = fileTreeRevision
@@ -807,7 +807,7 @@ extension BuilderViewModel {
         let billingGroupId = currentBillingGroupId ?? UUID().uuidString
         currentBillingGroupId = billingGroupId
         print(
-            "[billing-debug] builder.start_generation projectId=\(project.id) sessionId=\(activeChat?.id ?? "nil") appendUser=\(appendUserMessage) isBuildFix=\(isBuildFix) mode=\(mode.rawValue) billingGroupId=\(billingGroupId) preview=\(currentBillingMessagePreview ?? "")"
+            "[provider] builder.start_generation projectId=\(project.id) sessionId=\(activeChat?.id ?? "nil") appendUser=\(appendUserMessage) isBuildFix=\(isBuildFix) mode=\(mode.rawValue) billingGroupId=\(billingGroupId) preview=\(currentBillingMessagePreview ?? "")"
         )
 
         var restartContinuation: RestartContinuation?
@@ -1062,7 +1062,7 @@ extension BuilderViewModel {
             if let restartContinuation, !generationFailed {
                 print("[10x] Restarting generation with refreshed project context.")
                 print(
-                    "[billing-debug] builder.restart_generation reason=restart_note billingGroupId=\(billingGroupId) note=\(restartContinuation.note)"
+                    "[provider] builder.restart_generation reason=restart_note billingGroupId=\(billingGroupId) note=\(restartContinuation.note)"
                 )
                 appendSystemEventToChat(restartContinuation.event)
                 await saveLocally()
@@ -1095,7 +1095,7 @@ extension BuilderViewModel {
                 } else {
                     mode = next.mode
                     print(
-                        "[billing-debug] builder.dequeue_generation previousBillingGroupId=\(billingGroupId) nextMode=\(next.mode.rawValue)"
+                        "[provider] builder.dequeue_generation previousBillingGroupId=\(billingGroupId) nextMode=\(next.mode.rawValue)"
                     )
                     let nextAccessToken = await currentAccessToken()
                     startGeneration(
@@ -1120,7 +1120,7 @@ extension BuilderViewModel {
                 fileTreeRevision: fileTreeRevision,
                 lastPreviewedFileTreeRevision: lastPreviewedFileTreeRevision
             ) {
-                print("[billing-debug] builder.preview_refresh billingGroupId=\(billingGroupId)")
+                print("[provider] builder.preview_refresh billingGroupId=\(billingGroupId)")
                 await runSimulatorPreview(
                     autoFixIfNeeded: true,
                     buildFixMessageId: buildFixMessageId
