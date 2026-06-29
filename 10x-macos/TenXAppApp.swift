@@ -41,7 +41,7 @@ struct TenXAppApp: App {
     }
 
     var body: some Scene {
-        Window("10x", id: "main") {
+        Window(AppIdentity.displayName, id: "main") {
             Group {
                 if authManager.isCheckingAuth {
                     ProgressView("Loading...")
@@ -54,11 +54,13 @@ struct TenXAppApp: App {
             }
             .environment(authManager)
             .frame(minWidth: 1000, minHeight: 600)
+            .overlay(alignment: .topTrailing) {
+                LocalModeBadge()
+                    .padding(.top, 48)
+                    .padding(.trailing, 18)
+            }
             .tint(Theme.accent)
             .preferredColorScheme(.dark)
-            .task {
-                sparkleUpdater.activate()
-            }
             .sheet(
                 isPresented: Binding(
                     get: { sparkleUpdater.availableUpdatePrompt != nil },
@@ -92,13 +94,32 @@ struct TenXAppApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 800)
-        .commands {
-            CommandGroup(after: .appInfo) {
-                #if canImport(Sparkle)
-                CheckForUpdatesView(updaterCoordinator: sparkleUpdater)
-                #endif
-            }
+    }
+}
+
+private struct LocalModeBadge: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(AppIdentity.localBadgeTitle)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.textPrimary)
+
+            Text(AppIdentity.localBadgeDetails.joined(separator: " | "))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Theme.textSecondary)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.black.opacity(0.44), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(Theme.separator.opacity(0.7), lineWidth: 1)
+        }
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(AppIdentity.localBadgeTitle), \(AppIdentity.localBadgeDetails.joined(separator: ", "))"
+        )
     }
 }
 

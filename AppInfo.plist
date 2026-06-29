@@ -7,9 +7,9 @@
     <key>CFBundleIdentifier</key>
     <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
     <key>CFBundleName</key>
-    <string>10x</string>
+    <string>11x</string>
     <key>CFBundleDisplayName</key>
-    <string>10x</string>
+    <string>11x</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleVersion</key>
@@ -42,21 +42,21 @@
     <array>
         <dict>
             <key>CFBundleURLName</key>
-            <string>app.10x.macos</string>
+            <string>app.kasey.11x</string>
             <key>CFBundleURLSchemes</key>
             <array>
-                <string>app.10x.macos</string>
+                <string>elevenx</string>
             </array>
         </dict>
     </array>
     <key>SUEnableAutomaticChecks</key>
-    <true/>
+    <false/>
     <key>SUAutomaticallyUpdate</key>
-    <true/>
+    <false/>
     <key>SUFeedURL</key>
-    <string>$(SPARKLE_FEED_URL)</string>
+    <string></string>
     <key>SUPublicEDKey</key>
-    <string>$(SPARKLE_PUBLIC_ED_KEY)</string>
+    <string></string>
     <key>DEFAULT_UPDATE_CHANNEL</key>
     <string>$(DEFAULT_UPDATE_CHANNEL)</string>
 </dict>

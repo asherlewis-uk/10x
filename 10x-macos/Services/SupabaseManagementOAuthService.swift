@@ -23,7 +23,7 @@ enum SupabaseManagementOAuthError: LocalizedError {
         case .stateMismatch:
             return "Supabase OAuth state did not match. Connect again."
         case .missingAppSession:
-            return "Sign in to 10x before connecting Supabase."
+            return "Sign in to 11x before connecting Supabase."
         case .oauthFailed(let message):
             return message
         case .expiredSession:
@@ -39,7 +39,7 @@ final class SupabaseManagementOAuthService {
     static let edgeFunctionSecretWriteScopes = ["edge_functions_secrets_write"]
     static let managedBackendWriteScopes = edgeFunctionWriteScopes + edgeFunctionSecretWriteScopes
 
-    private let callbackScheme = "app.10x.macos"
+    private let callbackScheme = AppIdentity.urlScheme
     private let apiClient = APIClient()
     private let tokenStore = SupabaseManagementTokenStore()
     private var webAuthSession: ASWebAuthenticationSession?

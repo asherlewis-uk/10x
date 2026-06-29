@@ -18,7 +18,7 @@ final class FileSystemWatcher: @unchecked Sendable {
 
     private let sourcesDir: URL
     private let onChange: ChangeHandler
-    private let queue = DispatchQueue(label: "com.tenx.file-watcher", qos: .utility)
+    private let queue = DispatchQueue(label: "\(AppIdentity.preferencesNamespace).file-watcher", qos: .utility)
 
     private var eventStream: FSEventStreamRef?
 

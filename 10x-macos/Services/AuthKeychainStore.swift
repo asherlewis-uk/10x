@@ -4,7 +4,7 @@ import Security
 import Supabase
 
 enum AuthKeychainStore {
-    nonisolated static let defaultService = "app.10x.macos.auth"
+    nonisolated static let defaultService = AppIdentity.keychainServiceNamespace
 
     nonisolated static func data(
         for key: String,
@@ -89,7 +89,7 @@ enum AuthKeychainStore {
 
         let query = queryVariants(key: key, service: service)[0]
         let attributes: [String: Any] = [
-            kSecAttrLabel as String: "10x \(key)",
+            kSecAttrLabel as String: "\(AppIdentity.displayName) \(key)",
             kSecValueData as String: value,
         ]
 
@@ -104,7 +104,7 @@ enum AuthKeychainStore {
         }
 
         var addQuery = query
-        addQuery[kSecAttrLabel as String] = "10x \(key)"
+        addQuery[kSecAttrLabel as String] = "\(AppIdentity.displayName) \(key)"
         addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
         addQuery[kSecValueData as String] = value
 
@@ -151,7 +151,7 @@ enum AuthKeychainStore {
 
     private nonisolated static func logFailure(_ operation: String, status: OSStatus, service: String, key: String) {
         let message = SecCopyErrorMessageString(status, nil) as String? ?? "Unknown Keychain error"
-        print("[10x] Auth Keychain \(operation) failed for service \(service), key \(key): \(message) (\(status))")
+        print("[11x] Auth Keychain \(operation) failed for service \(service), key \(key): \(message) (\(status))")
     }
 
 }

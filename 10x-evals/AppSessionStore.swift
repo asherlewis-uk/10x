@@ -10,7 +10,7 @@ struct AppSession: Equatable {
 struct AppSessionStore {
     let suiteName: String
 
-    init(suiteName: String = "app.10x.macos") {
+    init(suiteName: String = "app.kasey.11x") {
         self.suiteName = suiteName
     }
 

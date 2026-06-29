@@ -4,7 +4,7 @@ enum AppUpdateChannel: String, CaseIterable, Identifiable {
     case stable
     case beta
 
-    static let userDefaultsKey = "preferredUpdateChannel"
+    static let userDefaultsKey = "\(AppIdentity.preferencesNamespace).preferredUpdateChannel"
     static let infoPlistKey = "DEFAULT_UPDATE_CHANNEL"
     static let betaSparkleChannel = "beta"
 

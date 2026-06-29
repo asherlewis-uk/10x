@@ -420,7 +420,7 @@ actor SimulatorPreviewService {
 
     private func captureScreenshot(simulatorUDID: String) async throws -> URL {
         let screenshotDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("TenXApp-previews", isDirectory: true)
+            .appendingPathComponent("ElevenX-previews", isDirectory: true)
         try FileManager.default.createDirectory(at: screenshotDir, withIntermediateDirectories: true)
 
         let screenshotPath = screenshotDir

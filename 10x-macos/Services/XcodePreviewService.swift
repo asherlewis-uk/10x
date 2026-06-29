@@ -12,13 +12,12 @@ actor XcodePreviewService {
     private let baseDir: URL
 
     init() {
-        baseDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Developer/TenXApp", isDirectory: true)
+        baseDir = AppIdentity.appSupportDirectory
     }
 
     // MARK: - Project Directory Layout
     //
-    // ~/Library/Developer/TenXApp/{project-slug}/
+    // ~/Library/Application Support/11x/{project-slug}/
     // ├── ios/                          # Xcode project
     // │   ├── {TargetName}/             # Swift source files
     // │   ├── {TargetName}.xcodeproj/
@@ -325,7 +324,7 @@ actor XcodePreviewService {
     /// Compile the file tree against iOS SDK and return any errors.
     func compile(fileTree: [String: String], projectName: String) async throws -> CompileResult {
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("TenXApp-compile-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("ElevenX-compile-\(UUID().uuidString)", isDirectory: true)
 
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }

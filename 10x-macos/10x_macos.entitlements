@@ -8,7 +8,7 @@
 	<true/>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>$(AppIdentifierPrefix)app.10x.shared</string>
+		<string>$(AppIdentifierPrefix)app.kasey.11x.shared</string>
 	</array>
 </dict>
 </plist>

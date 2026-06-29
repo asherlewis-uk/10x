@@ -92,8 +92,7 @@ struct ProjectSnapshot: Codable, Sendable {
 /// Stores data in the project's tenx/ directory alongside the generated code.
 actor LocalProjectStore {
     nonisolated static var baseDirectory: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Developer/TenXApp", isDirectory: true)
+        AppIdentity.appSupportDirectory
     }
 
     // MARK: - Directory helpers

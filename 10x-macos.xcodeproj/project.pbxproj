@@ -12,7 +12,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		C7A3C1922F5E5E47001B0B82 /* 10x.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = 10x.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C7A3C1922F5E5E47001B0B82 /* 11x.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = 11x.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -61,7 +61,7 @@
 		C7A3C1932F5E5E47001B0B82 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				C7A3C1922F5E5E47001B0B82 /* 10x.app */,
+				C7A3C1922F5E5E47001B0B82 /* 11x.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -89,8 +89,8 @@
 				AB00000100000000000000F2 /* Supabase */,
 				AB00000200000000000000F2 /* Sparkle */,
 			);
-			productName = 10x;
-			productReference = C7A3C1922F5E5E47001B0B82 /* 10x.app */;
+			productName = 11x;
+			productReference = C7A3C1922F5E5E47001B0B82 /* 11x.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -301,11 +301,11 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.10x.macos;
-				PRODUCT_NAME = 10x;
+				PRODUCT_BUNDLE_IDENTIFIER = app.kasey.11x;
+				PRODUCT_NAME = 11x;
 				REGISTER_APP_GROUPS = YES;
-				SPARKLE_FEED_URL = "https://downloads.example.invalid/appcast.xml";
-				SPARKLE_PUBLIC_ED_KEY = REPLACE_WITH_YOUR_SPARKLE_PUBLIC_ED_KEY;
+				SPARKLE_FEED_URL = "";
+				SPARKLE_PUBLIC_ED_KEY = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPABASE_ANON_KEY = sb_publishable_your_key;
 				SUPABASE_URL = "https://your-project-ref.supabase.co";
@@ -344,11 +344,11 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.10x.macos;
-				PRODUCT_NAME = 10x;
+				PRODUCT_BUNDLE_IDENTIFIER = app.kasey.11x;
+				PRODUCT_NAME = 11x;
 				REGISTER_APP_GROUPS = YES;
-				SPARKLE_FEED_URL = "https://downloads.example.invalid/appcast.xml";
-				SPARKLE_PUBLIC_ED_KEY = REPLACE_WITH_YOUR_SPARKLE_PUBLIC_ED_KEY;
+				SPARKLE_FEED_URL = "";
+				SPARKLE_PUBLIC_ED_KEY = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPABASE_ANON_KEY = sb_publishable_your_key;
 				SUPABASE_URL = "https://your-project-ref.supabase.co";

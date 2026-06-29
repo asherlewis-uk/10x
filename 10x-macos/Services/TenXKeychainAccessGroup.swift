@@ -3,7 +3,7 @@ import Security
 
 enum TenXKeychainAccessGroup {
     private nonisolated static let entitlementKey = "keychain-access-groups"
-    private nonisolated static let sharedGroupSuffix = "app.10x.shared"
+    private nonisolated static let sharedGroupSuffix = AppIdentity.keychainAccessGroupSuffix
     private nonisolated static let accessGroup = resolveCurrentAccessGroup()
 
     nonisolated static func queryVariants(for query: [String: Any]) -> [[String: Any]] {

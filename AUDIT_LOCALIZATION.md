@@ -808,3 +808,76 @@ Reseat candidates for later passes:
 ## Next Implementation Prompt
 
 Read `AGENTS.md` first. Then read the authoritative 11x docs and `AUDIT_LOCALIZATION.md`. Begin Pass 02 only: isolate app identity to `11x`, bundle ID `app.kasey.11x`, URL scheme `elevenx`, and 11x-scoped app support/preferences/Keychain namespaces. Do not remove Supabase, Superwall, billing, hosted deploy, app-store submission, or Sparkle yet except where identity isolation requires disabling unsafe vendor updater behavior. Preserve user changes, run pass-specific verification, show `git status --short`, and do not push.
+
+## Pass 02 Update - App Identity Isolation
+
+Pass status: implemented.
+
+Runtime scope:
+
+- Changed app identity, local namespaces, and updater activation only.
+- Did not remove Supabase, Superwall, billing, provider, storage, or SQL migration behavior.
+- Did not implement Pass 03.
+- Did not push.
+
+Files changed for Pass 02:
+
+- `AppInfo.plist`
+- `10x-macos.xcodeproj/project.pbxproj`
+- `10x-macos/10x_macos.entitlements`
+- `10x-macos/Config.swift`
+- `10x-macos/TenXAppApp.swift`
+- `10x-macos/ContentView.swift`
+- `10x-macos/Services/AppIdentity.swift`
+- `10x-macos/Services/AppUpdateChannel.swift`
+- `10x-macos/Services/AuthKeychainStore.swift`
+- `10x-macos/Services/FileSystemWatcher.swift`
+- `10x-macos/Services/LocalProjectStore.swift`
+- `10x-macos/Services/ProjectKeychainStore.swift`
+- `10x-macos/Services/SimulatorPreviewService.swift`
+- `10x-macos/Services/SupabaseManagementOAuthService.swift`
+- `10x-macos/Services/TenXKeychainAccessGroup.swift`
+- `10x-macos/Services/XcodePreviewService.swift`
+- `10x-macos/ViewModels/AuthManager.swift`
+- `10x-macos/ViewModels/BillingViewModel.swift`
+- `10x-evals/AppSessionStore.swift`
+- `10x-evalsTests/AppSessionStoreTests.swift`
+- `10x-macosTests/AppIdentityIsolationTests.swift`
+- `10x-macosTests/AuthKeychainStoreTests.swift`
+
+Identity changes completed:
+
+- Display name changed to `11x`.
+- Built product changed from `10x.app` to `11x.app`.
+- Bundle identifier changed from `app.10x.macos` to `app.kasey.11x`.
+- Custom URL scheme changed from `app.10x.macos` to `elevenx`.
+- `asherlewis.online` was not used as a custom URL scheme.
+- App support directory moved to `~/Library/Application Support/11x`.
+- Explicit preferences keys now use the `app.kasey.11x` namespace.
+- Keychain service namespace moved to `app.kasey.11x`.
+- Keychain access group suffix moved to `app.kasey.11x.shared`.
+- Temporary/cache-style preview directories moved from `TenXApp-*` to `ElevenX-*`.
+- Sparkle auto-checking and auto-updating were disabled, and the configured Sparkle feed/public key were blanked.
+- The app root now shows a visible local-mode badge: `11x`, `Single-user cockpit`, `Local backend`, `No billing`.
+
+Tests/assertions added:
+
+- `10x-macosTests/AppIdentityIsolationTests.swift`
+- Assertions cover runtime identity constants, Info.plist display name and URL scheme, Xcode product/bundle settings, entitlements, disabled updater feed, and local-mode badge copy.
+
+Verification run:
+
+- `git diff --check` passed.
+- `plutil -lint AppInfo.plist 10x-macos/10x_macos.entitlements 10x-macos/10x_macos_release.entitlements` passed.
+- Static scan for active `app.10x.macos`, `app.10x.shared`, `Library/Developer/TenXApp`, and `downloads.example.invalid/appcast` found only negative assertions in `AppIdentityIsolationTests`.
+- `xcodebuild -project 10x-macos.xcodeproj -scheme 10x-macos -configuration Debug -derivedDataPath .derivedData/10x-macos build CODE_SIGNING_ALLOWED=NO` passed and produced `.derivedData/10x-macos/Build/Products/Debug/11x.app`.
+- Built app Info.plist reported `CFBundleIdentifier=app.kasey.11x`, `CFBundleName=11x`, `CFBundleDisplayName=11x`, URL scheme `elevenx`, and `SUEnableAutomaticChecks=false`.
+- `swift test --filter AppIdentityIsolationTests` failed before compilation because Swiftly could not locate `Swift 6.3.1`.
+- `xcrun swift test --filter AppIdentityIsolationTests` passed: 6 tests, 0 failures.
+
+Remaining identity-era notes:
+
+- The Xcode project and source folder names still contain `10x-macos`; they are build target/repo structure names, not app bundle identity. They were left in place to avoid a large rename in Pass 02.
+- SwiftPM package/module names still contain `TenXApp`; they were left in place to avoid cross-target rename churn in Pass 02.
+- Generated app bundle IDs still use `com.10x.generated.*`; those identify generated iOS app artifacts, not the 11x macOS cockpit bundle. They were left for a later pass.
+- Supabase, Superwall, billing, hosted app-store, and provider surfaces remain active legacy implementation targets for later passes.

@@ -56,7 +56,7 @@ enum Config {
     static var sparkleFeedURL: String {
         ProcessInfo.processInfo.environment["SPARKLE_FEED_URL"]
             ?? Bundle.main.infoDictionary?["SUFeedURL"] as? String
-            ?? "https://downloads.example.invalid/appcast.xml"
+            ?? ""
     }
 
     static var defaultUpdateChannel: AppUpdateChannel {

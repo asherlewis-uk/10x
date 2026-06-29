@@ -3,7 +3,7 @@ import XCTest
 
 final class AppSessionStoreTests: XCTestCase {
     func testPrefersSupabaseStoredSessionBlobWhenPresent() throws {
-        let suiteName = "app.10x.macos.tests.\(UUID().uuidString)"
+        let suiteName = "app.kasey.11x.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defaults.set("stale-access", forKey: "tenx_access_token")
         defaults.set("stale-refresh", forKey: "tenx_refresh_token")
@@ -32,7 +32,7 @@ final class AppSessionStoreTests: XCTestCase {
     }
 
     func testLoadsSessionFromExplicitSuite() throws {
-        let suiteName = "app.10x.macos.tests.\(UUID().uuidString)"
+        let suiteName = "app.kasey.11x.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defaults.set("access", forKey: "tenx_access_token")
         defaults.set("refresh", forKey: "tenx_refresh_token")
@@ -51,7 +51,7 @@ final class AppSessionStoreTests: XCTestCase {
     }
 
     func testMissingAccessTokenThrowsHelpfulError() throws {
-        let suiteName = "app.10x.macos.tests.\(UUID().uuidString)"
+        let suiteName = "app.kasey.11x.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defaults.set("refresh", forKey: "tenx_refresh_token")
 

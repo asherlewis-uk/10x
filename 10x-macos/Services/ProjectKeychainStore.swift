@@ -3,7 +3,7 @@ import Security
 
 /// Local secure storage for project-scoped hosted secret values.
 enum ProjectKeychainStore {
-    private static let servicePrefix = "com.tenx.project-environment"
+    private static let servicePrefix = "\(AppIdentity.keychainServiceNamespace).project-environment"
 
     static func value(projectId: String, key: String) -> String? {
         let normalizedKey = ProjectEnvironmentSecurity.normalizedKey(key)
@@ -131,6 +131,6 @@ enum ProjectKeychainStore {
     private static func logFailure(_ operation: String, status: OSStatus, projectId: String, key: String?) {
         let resolvedKey = key ?? "*"
         let message = SecCopyErrorMessageString(status, nil) as String? ?? "Unknown Keychain error"
-        print("[10x] Keychain \(operation) failed for project \(projectId), key \(resolvedKey): \(message) (\(status))")
+        print("[11x] Keychain \(operation) failed for project \(projectId), key \(resolvedKey): \(message) (\(status))")
     }
 }

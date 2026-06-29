@@ -147,6 +147,9 @@ private struct TabBusySpinner: View {
 }
 
 struct ContentView: View {
+    private static let openTabsPreferenceKey = "\(AppIdentity.preferencesNamespace).openTabs"
+    private static let activeTabPreferenceKey = "\(AppIdentity.preferencesNamespace).activeTabId"
+
     @Environment(AuthManager.self) private var auth
 
     @State private var tabs: [AppTab] = []
@@ -233,7 +236,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .tenxBillingDeepLink)) { notification in
             guard
                 let url = notification.object as? URL,
-                url.scheme == "app.10x.macos",
+                url.scheme == AppIdentity.urlScheme,
                 url.host == "billing"
             else {
                 return
@@ -554,13 +557,13 @@ struct ContentView: View {
         guard hasRestoredTabs else { return }  // Don't save during initial restore
         let persistentTabs = tabs.map(normalizedUtilityTab)
         if let data = try? JSONEncoder().encode(persistentTabs) {
-            UserDefaults.standard.set(data, forKey: "openTabs")
+            UserDefaults.standard.set(data, forKey: Self.openTabsPreferenceKey)
         }
-        UserDefaults.standard.set(activeTabId, forKey: "activeTabId")
+        UserDefaults.standard.set(activeTabId, forKey: Self.activeTabPreferenceKey)
     }
 
     private func restoreTabs(accessToken: String) {
-        guard let data = UserDefaults.standard.data(forKey: "openTabs"),
+        guard let data = UserDefaults.standard.data(forKey: Self.openTabsPreferenceKey),
               let savedTabs = try? JSONDecoder().decode([AppTab].self, from: data) else {
             return
         }

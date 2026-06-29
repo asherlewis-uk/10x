@@ -62,8 +62,8 @@ final class AuthManager {
     private let refreshTokenKey = "tenx_refresh_token"
     private let userIdKey = "tenx_user_id"
     private let userEmailKey = "tenx_user_email"
-    private let callbackScheme = "app.10x.macos"
-    private let callbackURLString = "app.10x.macos://auth/callback"
+    private let callbackScheme = AppIdentity.urlScheme
+    private let callbackURLString = "\(AppIdentity.urlScheme)://auth/callback"
     private let authTokenStore = AuthTokenStore()
     private var webAuthSession: ASWebAuthenticationSession?
     private var presentationProvider = AuthPresentationProvider()
@@ -235,7 +235,7 @@ final class AuthManager {
     private func startAppleOAuthFallback() {
         print(
             "[Auth] Native Apple ID token audience was rejected by Supabase. " +
-            "Falling back to Apple OAuth. Add app.10x.macos to the Supabase Apple provider Client IDs."
+            "Falling back to Apple OAuth. Add \(AppIdentity.urlScheme) to the Supabase Apple provider Client IDs."
         )
         startOAuthSignIn(provider: .apple)
     }

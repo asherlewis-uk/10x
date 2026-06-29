@@ -543,7 +543,7 @@ final class BillingViewModel {
 
     func handleDeepLink(_ url: URL, accessToken: String) async {
         guard
-            url.scheme == "app.10x.macos",
+            url.scheme == AppIdentity.urlScheme,
             url.host == "billing",
             url.path == "/return"
         else {

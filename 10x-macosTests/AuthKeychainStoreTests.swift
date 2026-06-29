@@ -6,7 +6,7 @@ final class AuthKeychainStoreTests: XCTestCase {
     func testAuthTokenStoreMigratesLegacyDefaultsIntoKeychain() {
         let key = "tenx_access_token"
         let suiteName = "AuthTokenStoreMigratesLegacyDefaultsIntoKeychain"
-        let service = "app.10x.tests.auth.tokens.\(UUID().uuidString)"
+        let service = "app.kasey.11x.tests.auth.tokens.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.set("legacy-token", forKey: key)
 
@@ -24,7 +24,7 @@ final class AuthKeychainStoreTests: XCTestCase {
 
     func testAuthTokenStoreRemovesKeychainValue() {
         let key = "tenx_refresh_token"
-        let service = "app.10x.tests.auth.tokens.\(UUID().uuidString)"
+        let service = "app.kasey.11x.tests.auth.tokens.\(UUID().uuidString)"
         let store = AuthTokenStore(service: service)
 
         defer {
@@ -40,7 +40,7 @@ final class AuthKeychainStoreTests: XCTestCase {
 
     func testAuthTokenStoreHasValueWithoutReadingSecret() {
         let key = "tenx_access_token"
-        let service = "app.10x.tests.auth.tokens.\(UUID().uuidString)"
+        let service = "app.kasey.11x.tests.auth.tokens.\(UUID().uuidString)"
         let store = AuthTokenStore(service: service)
 
         defer {
@@ -57,7 +57,7 @@ final class AuthKeychainStoreTests: XCTestCase {
     func testKeychainAuthLocalStorageMigratesLegacyUserDefaultsData() throws {
         let key = "supabase.session"
         let suiteName = "KeychainAuthLocalStorageMigratesLegacyUserDefaultsData"
-        let service = "app.10x.tests.auth.supabase.\(UUID().uuidString)"
+        let service = "app.kasey.11x.tests.auth.supabase.\(UUID().uuidString)"
         let storage = KeychainAuthLocalStorage(
             service: service,
             legacyKeyPrefix: "tenx.supabase.auth",
@@ -81,7 +81,7 @@ final class AuthKeychainStoreTests: XCTestCase {
     }
 
     func testSupabaseManagementTokenStoreUsesKeychain() {
-        let service = "app.10x.tests.integrations.supabase-management.\(UUID().uuidString)"
+        let service = "app.kasey.11x.tests.integrations.supabase-management.\(UUID().uuidString)"
         let store = SupabaseManagementTokenStore(service: service)
 
         defer {
@@ -105,7 +105,7 @@ final class AuthKeychainStoreTests: XCTestCase {
     }
 
     func testSupabaseManagementTokenStoreHasStoredSessionWithoutInteractiveRead() {
-        let service = "app.10x.tests.integrations.supabase-management.\(UUID().uuidString)"
+        let service = "app.kasey.11x.tests.integrations.supabase-management.\(UUID().uuidString)"
         let store = SupabaseManagementTokenStore(service: service)
 
         defer {
@@ -130,7 +130,7 @@ final class AuthKeychainStoreTests: XCTestCase {
     }
 
     func testSupabaseManagementTokenStorePersistsOAuthSession() {
-        let service = "app.10x.tests.integrations.supabase-management.oauth.\(UUID().uuidString)"
+        let service = "app.kasey.11x.tests.integrations.supabase-management.oauth.\(UUID().uuidString)"
         let store = SupabaseManagementTokenStore(service: service)
 
         defer {
@@ -161,7 +161,7 @@ final class AuthKeychainStoreTests: XCTestCase {
     }
 
     func testSuperwallManagementTokenStoreUsesKeychain() {
-        let service = "app.10x.tests.integrations.superwall-management.\(UUID().uuidString)"
+        let service = "app.kasey.11x.tests.integrations.superwall-management.\(UUID().uuidString)"
         let store = SuperwallManagementTokenStore(service: service)
 
         defer {
