@@ -156,8 +156,7 @@ final class BuilderViewModel {
     }
 
     var hasSuperwallRuntimeIntegration: Bool {
-        !(environmentValuesByKey["SUPERWALL_PUBLIC_API_KEY"]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-            || projectSuperwallState.isConfigured
+        return false
     }
 
     var hasManagedSupabaseBackend: Bool {

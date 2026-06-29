@@ -63,8 +63,9 @@ final class AppIdentityIsolationTests: XCTestCase {
         XCTAssertTrue(appSource.contains("LocalModeBadge"))
         XCTAssertEqual(AppIdentity.localBadgeTitle, "11x")
         XCTAssertTrue(AppIdentity.localBadgeDetails.contains("Single-user cockpit"))
-        XCTAssertTrue(AppIdentity.localBadgeDetails.contains("Local backend"))
+        XCTAssertTrue(AppIdentity.localBadgeDetails.contains("Unlimited local"))
         XCTAssertTrue(AppIdentity.localBadgeDetails.contains("No billing"))
+        XCTAssertTrue(AppIdentity.localBadgeDetails.contains("Unlimited local"))
     }
 
     private func rootPlist(_ relativePath: String) throws -> [String: Any] {

@@ -47,7 +47,6 @@ struct ChatInputView: View {
     @Binding var pendingSkillSelection: String?
     @Binding var pendingViewSelectionID: String?
     @Environment(BuilderViewModel.self) private var viewModel
-    @Environment(BillingViewModel.self) private var billing
     @Environment(AuthManager.self) private var auth
     @State private var input = ""
     @State private var attachments: [BuilderMessageAttachment] = []
@@ -754,11 +753,7 @@ struct ChatInputView: View {
         if let composerError, !composerError.isEmpty {
             return
         }
-        if billing.totalCredits <= 0 {
-            composerError = "You’re out of credits. Get a plan or credit pack to continue."
-            openPlansAndPacks()
-            return
-        }
+        // Credits are unlimited in 11x local cockpit — no gating
         if let validationError {
             composerError = validationError
             return
@@ -956,8 +951,7 @@ struct ChatInputView: View {
     }
 
     private func openPlansAndPacks() {
-        billing.presentCatalog()
-        NotificationCenter.default.post(name: .tenxOpenBillingCatalog, object: nil)
+        // Billing catalog is disabled in 11x local cockpit
     }
 
     private static func isBillingUpgradeMessage(_ message: String) -> Bool {

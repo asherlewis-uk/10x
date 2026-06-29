@@ -9,16 +9,11 @@ struct AppTab: Identifiable, Equatable, Codable {
 
     enum Kind: String, Equatable, Codable {
         case project       // Full builder workspace (chat + preview)
-        case billing       // Global billing and plan management
-        case account       // Profile & billing page
+        case account       // Profile & settings page
     }
 
     static func project(name: String, projectId: String) -> AppTab {
         AppTab(id: UUID().uuidString, kind: .project, label: name, projectId: projectId)
-    }
-
-    static func billing() -> AppTab {
-        AppTab(id: UUID().uuidString, kind: .billing, label: "Billing", projectId: nil)
     }
 
     static func account() -> AppTab {
@@ -28,7 +23,6 @@ struct AppTab: Identifiable, Equatable, Codable {
     var icon: String {
         switch kind {
         case .project: "hammer.fill"
-        case .billing: "creditcard.fill"
         case .account: "person.crop.circle"
         }
     }

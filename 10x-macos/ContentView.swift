@@ -156,7 +156,6 @@ struct ContentView: View {
     @State private var activeTabId: String?  // nil = home screen
     @State private var tabViewModels: [String: BuilderViewModel] = [:]
     @State private var homeViewModel = BuilderViewModel()
-    @State private var billingViewModel = BillingViewModel()
     @State private var selectedSettingsSection: SettingsSection = .general
     @State private var hasRestoredTabs = false
     private let localStore = LocalProjectStore()
@@ -180,7 +179,7 @@ struct ContentView: View {
                     .allowsHitTesting(isHome)
 
                 ForEach(tabs) { tab in
-                    if tab.kind == .billing || tab.kind == .account || tabViewModels[tab.id] != nil {
+                    if tab.kind == .account || tabViewModels[tab.id] != nil {
                         tabContent(for: tab, vm: tabViewModels[tab.id])
                             .opacity(tab.id == activeTabId ? 1 : 0)
                             .allowsHitTesting(tab.id == activeTabId)
@@ -189,13 +188,11 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .environment(billingViewModel)
         .ignoresSafeArea(.all, edges: .top)
         .background(TrafficLightPositioner(barHeight: TabBarPalette.segmentHeight))
         .task(id: auth.accessToken) {
             guard let token = await auth.validAccessToken() else {
                 syncSessionAccessTokens(nil)
-                billingViewModel.clear()
                 tabs = []
                 tabViewModels = [:]
                 activeTabId = nil
@@ -220,12 +217,7 @@ struct ContentView: View {
                 restoreTabs(accessToken: token)
             }
 
-            if let pendingBillingURL = BillingDeepLinkStore.shared.consume() {
-                openAccountTab(select: .billing)
-                await billingViewModel.handleDeepLink(pendingBillingURL, accessToken: token)
-            } else {
-                await billingViewModel.refresh(accessToken: token)
-            }
+
         }
         .onChange(of: tabs) {
             saveTabs()
@@ -233,27 +225,8 @@ struct ContentView: View {
         .onChange(of: activeTabId) {
             saveTabs()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .tenxBillingDeepLink)) { notification in
-            guard
-                let url = notification.object as? URL,
-                url.scheme == AppIdentity.urlScheme,
-                url.host == "billing"
-            else {
-                return
-            }
 
-            openAccountTab(select: .billing)
-            BillingDeepLinkStore.shared.save(url)
-            Task {
-                guard let token = await auth.validAccessToken() else { return }
-                guard let pendingBillingURL = BillingDeepLinkStore.shared.consume() else { return }
-                await billingViewModel.handleDeepLink(pendingBillingURL, accessToken: token)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .tenxOpenBillingCatalog)) { _ in
-            openAccountTab(select: .billing)
-            billingViewModel.presentCatalog()
-        }
+
     }
 
     // MARK: - Per-tab ViewModel (created eagerly, read-only during body)
@@ -264,10 +237,7 @@ struct ContentView: View {
         let vm = BuilderViewModel()
         vm.projects = homeViewModel.projects
         vm.archivedProjects = homeViewModel.archivedProjects
-        vm.billingRefreshHandler = { [billingViewModel, auth] captureDelta in
-            guard let token = await auth.validAccessToken() else { return }
-            await billingViewModel.refresh(accessToken: token, captureDelta: captureDelta)
-        }
+        vm.billingRefreshHandler = { _ in }
         tabViewModels[tabId] = vm
         return vm
     }
@@ -351,7 +321,7 @@ struct ContentView: View {
         switch tab.kind {
         case .project:
             return AnyView(projectTab(tab, viewModel: viewModel))
-        case .billing, .account:
+        case .account:
             return AnyView(utilityTab(tab))
         }
     }
@@ -471,8 +441,6 @@ struct ContentView: View {
                     BuilderView()
                         .environment(vm)
                 }
-            case .billing:
-                SettingsView(selectedSection: .constant(.billing))
             case .account:
                 SettingsView(selectedSection: $selectedSettingsSection)
             }
@@ -555,7 +523,7 @@ struct ContentView: View {
 
     private func saveTabs() {
         guard hasRestoredTabs else { return }  // Don't save during initial restore
-        let persistentTabs = tabs.map(normalizedUtilityTab)
+        let persistentTabs = tabs
         if let data = try? JSONEncoder().encode(persistentTabs) {
             UserDefaults.standard.set(data, forKey: Self.openTabsPreferenceKey)
         }
@@ -568,11 +536,7 @@ struct ContentView: View {
             return
         }
 
-        if savedTabs.contains(where: { $0.kind == .billing }) {
-            selectedSettingsSection = .billing
-        }
-
-        for tab in savedTabs.map(normalizedUtilityTab) {
+        for tab in savedTabs {
             guard !tabs.contains(where: { restoredTabMatches($0, tab) }) else {
                 continue
             }
@@ -587,7 +551,7 @@ struct ContentView: View {
                 tabs.append(tab)
                 vm.selectProject(project, accessToken: accessToken)
                 preloadPreview(for: tab, project: project, viewModel: vm)
-            case .billing, .account:
+            case .account:
                 tabs.append(tab)
             }
         }
@@ -603,22 +567,11 @@ struct ContentView: View {
                 return false
             }
             return lhsProjectId == rhsProjectId
-        case (.billing, .billing), (.account, .account), (.billing, .account), (.account, .billing):
+        case (.account, .account):
             return true
         default:
             return false
         }
-    }
-
-    private func normalizedUtilityTab(_ tab: AppTab) -> AppTab {
-        guard tab.kind == .billing else {
-            return tab
-        }
-
-        var normalized = tab
-        normalized.kind = .account
-        normalized.label = "Account"
-        return normalized
     }
 
     private func archiveProject(_ project: BuilderProject) {

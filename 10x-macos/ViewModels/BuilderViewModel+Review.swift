@@ -554,9 +554,7 @@ extension BuilderViewModel {
             n: 1,
             projectId: project.id,
             sessionId: activeChat?.id,
-            idempotencyKey: UUID().uuidString,
-            billingGroupId: billingGroupId,
-            billingMessagePreview: "Generate App Store review icon"
+            idempotencyKey: UUID().uuidString
         )
 
         do {

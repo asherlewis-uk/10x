@@ -3,7 +3,7 @@ import Foundation
 enum ProjectIntegrationID: String, CaseIterable, Codable, Identifiable {
     case openAI = "openai"
     case supabase = "supabase"
-    case superwall = "superwall"
+    // Superwall removed in 11x local cockpit
 
     var id: String { rawValue }
 }
@@ -117,19 +117,7 @@ struct ProjectIntegrationDefinition: Identifiable, Hashable {
                     isReady: !url.isEmpty && !publicKey.isEmpty
                 ),
             ]
-        case .superwall:
-            let publicKey = Self.trimmedValue(for: "SUPERWALL_PUBLIC_API_KEY", in: values)
-
-            return [
-                ProjectIntegrationCapabilityStatus(
-                    id: "superwall-preview-runtime",
-                    label: "Preview/Test Runtime",
-                    detail: publicKey.isEmpty
-                        ? "Connect Superwall to link preview/test runtime safely."
-                        : "Superwall preview/test runtime is configured for the generated iOS app.",
-                    isReady: !publicKey.isEmpty
-                ),
-            ]
+        // Superwall removed in 11x local cockpit
         }
     }
 
@@ -217,8 +205,9 @@ enum ProjectIntegrations {
             ]
         ),
         .init(
-            id: .superwall,
-            title: "Superwall",
+            // Superwall removed in 11x local cockpit
+            id: .supabase,
+            title: "Supabase",
             summary: "",
             fields: [
                 ProjectIntegrationField(

@@ -106,12 +106,6 @@ enum BundledSkillsCatalog {
             content: supabaseSkillContent
         ),
         BundledSkill(
-            name: "superwall",
-            description: "Load before building Superwall SDK integrations, dashboard bootstrapping, placements, campaigns, or subscription-state handling.",
-            tags: ["superwall", "paywall", "subscription", "placements", "campaigns"],
-            content: superwallSkillContent
-        ),
-        BundledSkill(
             name: "backend",
             description: "Load before building managed Supabase backend work. Covers Backend workspace rules, named Edge Functions, backend secrets, deploy approvals, and no-proxy constraints.",
             tags: ["backend", "supabase", "functions", "serverless", "secrets"],
@@ -278,67 +272,6 @@ enum BundledSkillsCatalog {
     5. Show the resulting schema diff.
 
     This exact path needs separate local tooling and separate admin/database credentials outside the minimal client-facing integration page.
-    """
-
-    private nonisolated static let superwallSkillContent = """
-    # Superwall Integration Skill
-
-    Use this before building Superwall SDK code, paywall placements, dashboard automation, or subscription-aware gating.
-
-    ## Account Connection Rules
-
-    - Prefer the built-in Connect Superwall flow in Integrations.
-    - The org-scoped Superwall management API key belongs in local Keychain only.
-    - Do not ask the user to paste the org API key into chat, project files, or normal environment variables.
-    - `SUPERWALL_PUBLIC_API_KEY` is the only Superwall key that should enter the app runtime.
-    - When Superwall is connected and `superwall_manage` is available, use it instead of telling the user to create dashboard resources manually.
-    - When the user asks how to edit a paywall, include the linked Superwall dashboard or paywalls page when project context provides one.
-    - In user-facing summaries, do not center the response on the imported public runtime key name. Point the user to Integrations > Client Keys unless they explicitly ask which key was saved.
-
-    ## What Lives Where
-
-    - App code / 10x scope: `SUPERWALL_PUBLIC_API_KEY`, SDK configuration, placement names, preview test user wiring, and starter bootstrap resources.
-    - Superwall dashboard scope: paywall design, copy, template choice, assets, product attachments, campaign targeting, and experiments.
-    - Tell the user explicitly that visual paywall editing happens in Superwall, not in the iOS codebase.
-
-    ## Builder Workflow
-
-    - First bootstrap or link the Superwall project and iOS application.
-    - Then have the user create, duplicate, or import the paywall in Superwall.
-    - After that, seed starter monetization by attaching an entitlement, products, and a preview-only campaign to the selected existing paywall.
-    - Keep the initial setup preview-safe. Default to test-mode and preview-only targeting until production handoff is explicit.
-    - Reuse saved placement names, products, and linked dashboard resources from project context instead of creating duplicates.
-
-    ## Runtime Rules
-
-    - Use a dedicated Superwall wrapper/service. Do not scatter raw `Superwall.shared` calls throughout views.
-    - The wrapper should own:
-      - configure
-      - placement registration
-      - subscription-status observation
-      - identify/reset around auth changes
-      - user attributes
-      - deep-link handling when used
-    - In `DEBUG`, prefer the deterministic preview user (`tenx-preview-<projectId>`) and set a preview attribute such as `tenx_preview = true` when no real identity exists.
-    - In `DEBUG`, use `.whenEnabledForUser` when the preview user has been synced for test mode; otherwise fall back to `.always`.
-    - In `Release`, use `.automatic` and remove synthetic preview identity/attributes.
-    - Read `SUPERWALL_PUBLIC_API_KEY` from `ProcessInfo.processInfo.environment` first, then from a shipping-safe fallback such as Info.plist or XCConfig.
-
-    ## Placement Rules
-
-    - Do not collapse the app into one generic `showPaywall` placement.
-    - Use one placement per monetization moment.
-    - Always include `upgrade_prompt`.
-    - Include `onboarding_complete` when onboarding exists.
-    - For premium features, use names like `premium_<feature_slug>`.
-
-    ## SDK And Dashboard Rules
-
-    - Prefer the official Superwall iOS SDK.
-    - Add the `Superwall-iOS` package only when generated code actually imports `SuperwallKit`.
-    - If RevenueCat is already present, acknowledge the branch and avoid inventing a new first-class purchase-controller path unless the user explicitly wants that.
-    - Treat "configured" as preview/test ready, not launch ready.
-    - Before launch, replace preview-only campaign targeting, confirm App Store Connect products, verify TestFlight purchases, and move the public API key into real release configuration.
     """
 
     private nonisolated static let backendSkillContent = """

@@ -25,7 +25,7 @@ struct BuilderProject: Codable, Identifiable, Sendable {
 extension BuilderProject {
     static let dependencyManifestSettingsKey = "project_dependencies"
     static let backendStateSettingsKey = "project_backend"
-    static let superwallStateSettingsKey = "project_superwall"
+    // Superwall removed in 11x local cockpit
 
     var dependencyManifest: ProjectDependencyManifest? {
         settings?[Self.dependencyManifestSettingsKey]?.decode(ProjectDependencyManifest.self)
@@ -35,9 +35,7 @@ extension BuilderProject {
         settings?[Self.backendStateSettingsKey]?.decode(ProjectBackendState.self)
     }
 
-    var superwallState: ProjectSuperwallState? {
-        settings?[Self.superwallStateSettingsKey]?.decode(ProjectSuperwallState.self)
-    }
+    // Superwall removed in 11x local cockpit
 }
 
 struct BuilderVersion: Codable, Identifiable, Sendable {

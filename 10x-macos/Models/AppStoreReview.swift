@@ -55,8 +55,7 @@ struct OpenAIImageProxyRequest: Codable, Sendable {
     let projectId: String?
     let sessionId: String?
     let idempotencyKey: String?
-    let billingGroupId: String?
-    let billingMessagePreview: String?
+    // Billing fields removed in 11x local cockpit
 }
 
 enum AppStoreReviewScreenshotAction: String, Codable, Sendable {

@@ -56,10 +56,6 @@ actor APIClient {
         versioned("/builder/skills" + normalizedSuffix(endpoint))
     }
 
-    nonisolated static func billing(_ endpoint: String = "") -> String {
-        versioned("/billing" + normalizedSuffix(endpoint))
-    }
-
     nonisolated static func admin(_ endpoint: String = "") -> String {
         versioned("/admin" + normalizedSuffix(endpoint))
     }
@@ -172,7 +168,6 @@ actor APIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json, application/x-ndjson", forHTTPHeaderField: "Accept")
         request.setValue(Config.apiVersion, forHTTPHeaderField: "X-10x-Api-Version")
-        request.setValue(Config.creditUnits, forHTTPHeaderField: "X-10x-Credit-Units")
         request.setValue(Config.appVersion, forHTTPHeaderField: "X-10x-App-Version")
         request.setValue(Config.appBuild, forHTTPHeaderField: "X-10x-App-Build")
         request.setValue(Config.platform, forHTTPHeaderField: "X-10x-Platform")

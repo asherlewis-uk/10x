@@ -2,7 +2,6 @@ import SwiftUI
 
 struct GeneralSettingsView: View {
     @Environment(AuthManager.self) private var auth
-    @Environment(BillingViewModel.self) private var billing
     @State private var selectedUpdateChannel = AppUpdateChannel.preferredChannel()
 
     var body: some View {
@@ -14,9 +13,7 @@ struct GeneralSettingsView: View {
             sessionCard
         }
         .task {
-            guard billing.summary == nil else { return }
-            guard let token = await auth.validAccessToken() else { return }
-            await billing.refresh(accessToken: token)
+            // Billing refresh disabled in 11x local cockpit
         }
     }
 
@@ -39,20 +36,9 @@ struct GeneralSettingsView: View {
                         .font(Theme.geist(18, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
 
-                    if let plan = billing.currentPlan {
-                        HStack(spacing: Theme.spacingSM) {
-                            Text(plan.name)
-                                .font(Theme.geist(12, weight: .medium))
-                                .foregroundStyle(Theme.textSecondary)
-                            SettingsMetaChip(text: billing.summary?.subscription?.planStateLabel ?? defaultPlanStateLabel(for: plan))
-                        }
-
-                        if let subscription = billing.summary?.subscription {
-                            Text("\(subscription.periodEndLabel) \(formatDate(subscription.currentPeriodEnd))")
-                                .font(Theme.geist(11))
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                    }
+                    Text("Unlimited local cockpit")
+                        .font(Theme.geist(12, weight: .medium))
+                        .foregroundStyle(Theme.textSecondary)
                 }
 
                 Spacer()
@@ -62,18 +48,6 @@ struct GeneralSettingsView: View {
                 if let email = auth.userEmail {
                     SettingsInsetRow {
                         accountRow(label: "Email", value: email)
-                    }
-                }
-
-                if let plan = billing.currentPlan {
-                    SettingsInsetRow {
-                        accountRow(label: "Plan", value: plan.name)
-                    }
-                }
-
-                if let subscription = billing.summary?.subscription {
-                    SettingsInsetRow {
-                        accountRow(label: subscription.periodEndLabel, value: formatDate(subscription.currentPeriodEnd))
                     }
                 }
 
@@ -188,21 +162,6 @@ struct GeneralSettingsView: View {
 
     private func defaultPlanStateLabel(for plan: BillingPlan) -> String {
         plan.priceCents == 0 ? "Free plan" : "Current plan"
-    }
-
-    private func formatDate(_ iso: String?) -> String {
-        guard let iso else { return "" }
-        let isoFormatter = ISO8601DateFormatter()
-        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let fallback = ISO8601DateFormatter()
-
-        if let date = isoFormatter.date(from: iso) ?? fallback.date(from: iso) {
-            let df = DateFormatter()
-            df.dateStyle = .medium
-            df.timeStyle = .short
-            return df.string(from: date)
-        }
-        return iso
     }
 
     private var initials: String {

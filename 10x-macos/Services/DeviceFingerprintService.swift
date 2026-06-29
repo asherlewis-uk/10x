@@ -1,7 +1,7 @@
 import Foundation
 
 enum SignupBonusClaimStore {
-    nonisolated private static let service = "\(AuthKeychainStore.defaultService).billing"
+    nonisolated private static let service = "\(AuthKeychainStore.defaultService).device-fingerprint"
     nonisolated private static let signupBonusClaimKey = "signup_bonus_local_claim"
 
     struct Record: Sendable {

@@ -87,10 +87,6 @@ struct TenXAppApp: App {
                     .presentationBackground(.clear)
                 }
             }
-            .onOpenURL { url in
-                BillingDeepLinkStore.shared.save(url)
-                NotificationCenter.default.post(name: .tenxBillingDeepLink, object: url)
-            }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 800)

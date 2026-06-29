@@ -401,7 +401,7 @@ enum ProductionGuideBuilder {
             beforeTestFlight.insert("Move OpenAI traffic behind your backend before TestFlight distribution.", at: 0)
         }
         if plainKeys.contains("SUPERWALL_PUBLIC_API_KEY") {
-            beforeTestFlight.append("For Superwall, remove preview-only audience targeting, confirm App Store Connect product IDs, and verify real TestFlight or sandbox purchases before launch.")
+            // Superwall removed in 11x local cockpit
         }
 
         return ProductionGuideSection(
@@ -450,7 +450,7 @@ enum ProductionGuideBuilder {
         }
 
         if plainKeys.contains("SUPERWALL_PUBLIC_API_KEY") {
-            bullets.append("`SUPERWALL_PUBLIC_API_KEY` is client-safe, but Superwall still needs production handoff: tighten campaign audiences, confirm store products, and verify release purchase behavior before shipping.")
+            // Superwall removed in 11x local cockpit
         }
 
         bullets.append("If a value can spend money, access private data, or call a provider with elevated privileges, move it behind your backend.")

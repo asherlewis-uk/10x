@@ -300,12 +300,12 @@ extension BuilderViewModel {
                 }
             }
 
-            await billingRefreshHandler?(true)
+            // Billing refresh disabled in 11x local cockpit
 
             let response = try parseAppStoreSubmissionResponse(text)
             return normalizedGeneratedResponse(from: response)
         } catch {
-            await billingRefreshHandler?(true)
+            // Billing refresh disabled in 11x local cockpit
             throw error
         }
     }

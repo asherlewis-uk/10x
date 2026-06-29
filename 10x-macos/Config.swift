@@ -14,16 +14,19 @@ enum Config {
     static let apiVersion = "v1"
     static let creditUnits = "normalized"
     static let platform = "macos"
+
+    // MARK: Billing / Payments — permanently disabled for 11x local cockpit
+
     static var billingTestMode: Bool {
-        boolValue(for: "BILLING_TEST_MODE", defaultValue: false)
+        LocalEntitlements.billingTestMode
     }
 
     static var paymentsEnabled: Bool {
-        boolValue(for: "PAYMENTS_ENABLED", defaultValue: true)
+        LocalEntitlements.paymentsEnabled
     }
 
     static var signupBonusEnabled: Bool {
-        boolValue(for: "SIGNUP_BONUS_ENABLED", defaultValue: true)
+        LocalEntitlements.signupBonusEnabled
     }
 
     static var useNativeAppleSignIn: Bool {

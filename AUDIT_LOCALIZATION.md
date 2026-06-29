@@ -881,3 +881,144 @@ Remaining identity-era notes:
 - SwiftPM package/module names still contain `TenXApp`; they were left in place to avoid cross-target rename churn in Pass 02.
 - Generated app bundle IDs still use `com.10x.generated.*`; those identify generated iOS app artifacts, not the 11x macOS cockpit bundle. They were left for a later pass.
 - Supabase, Superwall, billing, hosted app-store, and provider surfaces remain active legacy implementation targets for later passes.
+
+## Pass 03 Update - Local Entitlements and Monetization Removal
+
+Pass status: implemented.
+
+Runtime scope:
+
+- Replaced pricing, credits, billing, paywalls, checkout, receipt validation, StoreKit purchase flows, and Superwall with a local unlimited single-user entitlement model.
+- Did not remove Supabase persistence/auth yet.
+- Did not implement SQL migration yet.
+- Did not implement provider reseat yet.
+- Did not implement Pass 04.
+- Did not push.
+
+Files changed for Pass 03:
+
+- `10x-macos/Models/LocalEntitlements.swift` (new)
+- `10x-macosTests/LocalEntitlementsTests.swift` (new)
+- `10x-macos/Config.swift`
+- `10x-macos/Services/AppIdentity.swift`
+- `10x-macos/Models/AppTab.swift`
+- `10x-macos/Views/Settings/SettingsView.swift`
+- `10x-macos/Views/Settings/GeneralSettingsView.swift`
+- `10x-macos/Views/Settings/UsageSettingsView.swift`
+- `10x-macos/ContentView.swift`
+- `10x-macos/TenXAppApp.swift`
+- `10x-macos/Views/HomeView.swift`
+- `10x-macos/Views/Chat/ChatInputView.swift`
+- `10x-macos/Views/Chat/ChatPanelView.swift`
+- `10x-macos/Services/APIClient.swift`
+- `10x-macos/Services/DeviceFingerprintService.swift`
+- `10x-macos/Models/AppStoreReview.swift`
+- `10x-macos/Models/ProductionGuide.swift`
+- `10x-macos/Services/Builder/GenerationService.swift`
+- `10x-macos/Theme.swift`
+- `10x-macos/ViewModels/BuilderViewModel.swift`
+- `10x-macos/ViewModels/BuilderViewModel+Generation.swift`
+- `10x-macos/ViewModels/BuilderViewModel+Preview.swift`
+- `10x-macos/ViewModels/BuilderViewModel+AppStoreSubmission.swift`
+- `10x-macos/ViewModels/BuilderViewModel+Review.swift`
+- `10x-macos/ViewModels/BuilderViewModel+Projects.swift`
+- `10x-macos/Services/Builder/BuilderPrompts.swift`
+- `10x-macos/Services/Builder/BuilderToolDefinitions.swift`
+- `10x-macos/Services/Builder/BundledSkillsCatalog.swift`
+- `10x-macos/Services/Builder/SkillsManager.swift`
+- `10x-macos/Services/Builder/ToolExecutor.swift`
+- `10x-macos/Models/BuilderProject.swift`
+- `10x-macos/Models/ProjectIntegrations.swift`
+- `10x-macos/Models/ProjectDependencies.swift`
+- `10x-macos/Services/XcodePreviewService.swift`
+- `10x-macos/Views/Preview/EnvironmentVariablesView.swift`
+- `10x-macos/Models/OnboardingData.swift`
+- `10x-macos/ViewModels/BillingViewModel.swift` (deleted)
+- `10x-macos/Views/Billing/BillingView.swift` (deleted)
+- `10x-macosTests/SuperwallManagementServiceTests.swift` (deleted)
+- `10x-macosTests/AppIdentityIsolationTests.swift`
+- `10x-macosTests/AppStoreSubmissionTests.swift`
+- `10x-macosTests/AuthKeychainStoreTests.swift`
+- `10x-macosTests/BuilderIntegrationToolTests.swift`
+- `10x-macosTests/ProductionGuideTests.swift`
+- `10x-macosTests/ProjectIntegrationSupportTests.swift`
+- `10x-macosTests/XcodePreviewServiceTests.swift`
+
+Entitlement changes completed:
+
+- Added `LocalEntitlements.swift` as the single source of truth.
+- `mode` is `single_user_unlimited`.
+- `billingEnabled` is `false`.
+- `creditsEnabled` is `false`.
+- `creditsRemaining` is `Double.infinity`.
+- `canGenerate` is `true`.
+- `canExport` is `true`.
+- `canUseLocalBackend` is `true`.
+- `canUseHostedVendorBackend` is `false`.
+- `canUseBilling` is `false`.
+- `canPurchaseCredits` is `false`.
+- `paymentsEnabled` is `false`.
+- `signupBonusEnabled` is `false`.
+- `billingTestMode` is `true` (billing is permanently off).
+- `usageTrackingGatesFeatures` is `false`.
+- `Config.paymentsEnabled`, `Config.signupBonusEnabled`, and `Config.billingTestMode` now delegate to `LocalEntitlements`.
+- `AppIdentity.localBadgeDetails` now reads `Single-user cockpit`, `Unlimited local`, `No billing`.
+
+Billing/pricing/credit/paywall removal completed:
+
+- Deleted `BillingViewModel.swift` and `BillingView.swift`.
+- Removed the `.billing` tab kind from `AppTab`.
+- Removed the Billing section from `SettingsView` and the `BillingDisabledSettingsView`.
+- Removed billing deep-link handling from `TenXAppApp` and `ContentView`.
+- Removed billing environment injection from `ContentView`.
+- Replaced the HomeView "plans and packs" card with a "Create your first project" card.
+- Removed credit-gating and billing-upgrade CTAs from `ChatInputView` and `ChatPanelView`.
+- Removed billing plan/subscription display from `GeneralSettingsView`.
+- Replaced `UsageSettingsView` with a local-diagnostics-only view.
+- Removed billing endpoints and credit-units header from `APIClient`.
+- Removed billing fields from `AppStoreReview` model.
+- Removed billing references from `ProductionGuide` and `OnboardingData`.
+- Removed billing debug group IDs and message previews from generation/review flows (kept as optional local diagnostics metadata).
+- Removed `Theme.billingStatusTint` active logic.
+
+Superwall removal/disabling completed:
+
+- Deleted `SuperwallManagementServiceTests.swift`.
+- Removed Superwall from the bundled skill registry (`superwall` skill no longer advertised).
+- Removed `superwall` from `BuilderToolDefinitions` integration tool groups.
+- Stubbed `superwall_manage` tool execution to return "Superwall is not available in 11x local cockpit.".
+- Removed Superwall prompt sections from `BuilderPrompts`.
+- Removed Superwall dependency inference from `ProjectDependencies`.
+- Removed `.superwall` integration case from active `ProjectIntegrations` switch paths.
+- Removed Superwall package dependency injection from `XcodePreviewService`.
+- Removed Superwall state from `BuilderProject` active settings key and decoding (kept inert property for compatibility).
+- Stubbed `hasSuperwallRuntimeIntegration` to always return `false`.
+- Removed Superwall state propagation in `BuilderViewModel+Projects`.
+- Removed Superwall from `SkillsManager` skill descriptions and icons.
+- The Superwall management service file and ProjectSuperwall model file remain in the tree as inert dead code; full deletion requires removing internal references across `ToolExecutor`, `BuilderViewModel+Generation`, and `EnvironmentVariablesView`, which is deferred to a later pass to avoid large cascading churn.
+
+Tests/assertions added:
+
+- `10x-macosTests/LocalEntitlementsTests.swift`
+- 22 assertions covering mode, billing/credits flags, generation/export availability, hosted-vendor backend flag, payments/signup-bonus flags, billing test mode, usage-tracking non-gating, Config integration, app identity badge, and no-credit-blocking invariants.
+- Removed or updated Superwall/billing assertions in `BuilderIntegrationToolTests`, `ProjectIntegrationSupportTests`, `XcodePreviewServiceTests`, `AppStoreSubmissionTests`, `AuthKeychainStoreTests`, `ProductionGuideTests`, and `AppIdentityIsolationTests`.
+
+Verification run:
+
+- `git diff --check` passed.
+- `xcodebuild -project 10x-macos.xcodeproj -scheme 10x-macos -configuration Debug -derivedDataPath .derivedData/10x-macos build CODE_SIGNING_ALLOWED=NO` passed and produced `.derivedData/10x-macos/Build/Products/Debug/11x.app`.
+- `xcrun swift test` passed: 170 tests, 0 failures.
+- `xcrun swift test --filter LocalEntitlementsTests` passed: 22 tests, 0 failures.
+- Static scan confirmed no active runtime references to `BillingViewModel`, `BillingView`, `.billing` tab, `presentCatalog`, checkout flows, or credit-gating in `ChatInputView`/`ChatPanelView`/`HomeView`.
+- Static scan confirmed Superwall SDK dependency is not in `Package.swift`; Superwall tool/skill references are stubbed/disabled at integration boundaries.
+
+Remaining monetization-era notes:
+
+- `BillingModels.swift` remains as a usage-diagnostics helper (`BillingDisplay`, `BillingMessageCharge`) for the local diagnostics usage list; it is not used for gating.
+- `SuperwallManagementService.swift` and `ProjectSuperwall.swift` remain as inert files; no runtime path reaches them because the integration switch cases and tool catalog no longer expose Superwall.
+- Supabase persistence/auth remains in place per Pass 03 scope lock.
+- SQL migration and provider reseat remain future-pass work.
+
+## Next Implementation Prompt
+
+Read `AGENTS.md` first. Then read the authoritative 11x docs and `AUDIT_LOCALIZATION.md`. Begin Pass 04 only: provider reseat to OpenAI-compatible BYOK/local gateway using `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL`. Do not remove Supabase/Superwall persistence/auth beyond what Pass 03 already disabled. Preserve user changes, run pass-specific verification, show `git status --short`, and do not push.

@@ -887,9 +887,7 @@ extension BuilderViewModel {
                     workspaceRoot: workspaceRoot
                 )
                 : nil
-            let superwallToolHandlers = activeIntegrationToolAvailability.hasSuperwallAccess
-                ? makeSuperwallToolHandlers()
-                : nil
+            // Superwall removed in 11x local cockpit
             let toolExecutor = ToolExecutor(
                 workspaceRoot: workspaceRoot,
                 projectName: project.name,
@@ -942,7 +940,6 @@ extension BuilderViewModel {
                 },
                 supabaseToolHandlers: supabaseToolHandlers,
                 backendToolHandlers: backendToolHandlers,
-                superwallToolHandlers: superwallToolHandlers
             )
 
             let promptAccessToken = await currentAccessToken()
@@ -1006,7 +1003,7 @@ extension BuilderViewModel {
                 billingGroupId: billingGroupId,
                 billingMessagePreview: currentBillingMessagePreview,
                 onClaudeCallFinished: { [weak self] in
-                    await self?.billingRefreshHandler?(true)
+                    // Billing refresh disabled in 11x local cockpit
                 }
             ) { [weak self] event in
                 guard let self else { return }
@@ -1751,7 +1748,7 @@ extension BuilderViewModel {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard currentValue != trimmedValue,
-              let field = ProjectIntegrations.definition(for: .superwall).fields.first(where: { $0.envKey == envKey }) else {
+              let field = ProjectIntegrations.definition(for: .supabase).fields.first(where: { $0.envKey == envKey }) else {
             return
         }
 

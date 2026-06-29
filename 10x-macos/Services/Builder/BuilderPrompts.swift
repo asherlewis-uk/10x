@@ -151,7 +151,7 @@ enum BuilderPrompts {
         let warnings: [BuilderProjectWarning]
         let dependencyManifest: ProjectDependencyManifest?
         let backendState: ProjectBackendState
-        let superwallState: ProjectSuperwallState
+        // Superwall removed in 11x local cockpit
         let designStyle: DesignStyle?
         let environmentVariables: [ProjectEnvironmentVariable]
         let hasCustomProjectIcon: Bool
@@ -190,7 +190,7 @@ enum BuilderPrompts {
         warnings: [BuilderProjectWarning] = [],
         dependencyManifest: ProjectDependencyManifest? = nil,
         backendState: ProjectBackendState = .empty,
-        superwallState: ProjectSuperwallState = .empty,
+        // Superwall removed in 11x local cockpit
         designStyle: DesignStyle? = nil,
         environmentVariables: [ProjectEnvironmentVariable] = [],
         hasCustomProjectIcon: Bool = false,
@@ -205,7 +205,7 @@ enum BuilderPrompts {
             warnings: warnings,
             dependencyManifest: dependencyManifest,
             backendState: backendState,
-            superwallState: superwallState,
+            // Superwall removed in 11x local cockpit
             designStyle: designStyle,
             environmentVariables: environmentVariables,
             hasCustomProjectIcon: hasCustomProjectIcon,
@@ -272,9 +272,7 @@ enum BuilderPrompts {
             messages.append(projectBackendSection)
         }
 
-        if let projectSuperwallSection = projectSuperwallSection(for: input) {
-            messages.append(projectSuperwallSection)
-        }
+        // Superwall section removed in 11x local cockpit
 
         return messages
     }
@@ -537,65 +535,6 @@ enum BuilderPrompts {
             - Apple provider setup: fill Client IDs and Secret in Supabase Auth > Providers > Apple. In Apple Developer create an App ID, Services ID, and Sign in with Apple key. Register the Services ID for web OAuth plus any native bundle IDs you use. The callback URL shown in Supabase is usually \(callbackURL); if the project uses a custom Auth domain, use the Callback URL shown on the provider page instead.
             - Google provider setup: fill Client ID and Secret in Supabase Auth > Providers > Google. In Google Cloud create a web OAuth client and add the exact Supabase callback URL as an authorized redirect URI. If you use multiple client IDs, keep the web client ID first.
             - Email confirmation setup: default to Confirm Email off in Auth > Providers > Email unless the user explicitly wants verified-email onboarding. Use URL Configuration for Site URL and Redirect URLs, and Email Templates for confirm-signup, magic-link, and reset-password copy or redirect behavior.
-            """
-        )
-    }
-
-    private static func projectSuperwallSection(for input: PromptInput) -> String? {
-        let hasSuperwallRuntime = input.environmentVariables.contains {
-            ProjectEnvironmentSecurity.normalizedKey($0.key) == "SUPERWALL_PUBLIC_API_KEY"
-                && !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
-        let requiresSuperwall = input.dependencyManifest?.dependencies.contains {
-            $0.integrationID == .superwall
-        } ?? false
-        let state = input.superwallState
-        let hasLinkedResources = state.projectID != nil || state.applicationID != nil
-
-        guard hasSuperwallRuntime || requiresSuperwall || hasLinkedResources else {
-            return nil
-        }
-
-        let placements = state.placements.isEmpty
-            ? "- none saved yet"
-            : state.placements.map { "- `\($0)`" }.joined(separator: "\n")
-        let products = state.products.isEmpty
-            ? "- none saved yet"
-            : state.products.map { "- `\($0.identifier)`" }.joined(separator: "\n")
-        let dashboardURL = state.applicationDashboardLink?.absoluteString ?? "none"
-        let paywallsURL = state.paywallsDashboardURL?.absoluteString ?? "none"
-
-        return contextBlock(
-            tag: "project_superwall",
-            body: """
-            ## Project Superwall
-            - Load `superwall` for Superwall SDK, dashboard, API, template, placement, campaign, entitlement, and subscription-state work.
-            - Load `monetization` alongside `superwall` when the user wants pricing, trial, or paywall strategy guidance.
-            - If `superwall_manage` is available, use it instead of telling the user to create or update Superwall resources manually.
-            - Do not ask the user to paste the org-scoped Superwall API key or `SUPERWALL_PUBLIC_API_KEY` into chat.
-            - `SUPERWALL_PUBLIC_API_KEY` is client-safe runtime config. The org management key stays in local Keychain only.
-            - Preview/test mode is the safe default. Treat a configured Superwall integration as preview-ready, not production-complete.
-            - Linked organization: \(state.organizationName ?? "none")
-            - Linked project: \(state.projectName ?? "none")
-            - Linked application: \(state.applicationName ?? "none")
-            - Linked dashboard: \(dashboardURL)
-            - Paywalls page: \(paywallsURL)
-            - Bundle ID synced to Superwall: \(state.importedBundleID ?? "none")
-            - Bootstrap status: \(state.bootstrapStatus?.rawValue ?? "unlinked")
-            - Active paywall: \(state.paywallName ?? "none")
-            - Active campaign: \(state.campaignName ?? "none")
-            - Preview app user: \(state.previewAppUserID ?? "none")
-            - Tell the user exactly what is managed where:
-              - App code / 10x: `SUPERWALL_PUBLIC_API_KEY`, SDK configuration, placement names, preview test user wiring, and starter bootstrap resources.
-              - Superwall dashboard: paywall creation, duplication or share-link import, paywall design, copy, template choice, assets, product attachments, campaign targeting, and experiments.
-            - Prefer a paywall-first setup: have the user create, duplicate, or import the paywall in Superwall first, then use 10x to attach starter products and preview targeting.
-            - When the user asks to change the paywall, include the linked dashboard or paywalls page if available and tell them that visual paywall editing happens in Superwall, not in the iOS codebase.
-
-            Saved placements:
-            \(placements)
-
-            Saved products:
-            \(products)
             """
         )
     }

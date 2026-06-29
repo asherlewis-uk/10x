@@ -1462,9 +1462,7 @@ actor XcodePreviewService {
         if fileTree.values.contains(where: { importsModule("Supabase", in: $0) }) {
             dependencies.append(.supabase)
         }
-        if fileTree.values.contains(where: { importsModule("SuperwallKit", in: $0) }) {
-            dependencies.append(.superwall)
-        }
+        // Superwall removed in 11x local cockpit
         return dependencies
     }
 
@@ -1586,14 +1584,6 @@ private struct SwiftPackageDependency {
         self.packageIdentity = packageIdentity
         self.productName = productName
     }
-
-    nonisolated static let superwall = SwiftPackageDependency(
-        yamlKey: "Superwall",
-        repositoryURL: "https://github.com/superwall/Superwall-iOS",
-        minimumVersion: "4.0.0",
-        packageIdentity: "Superwall-iOS",
-        productName: "SuperwallKit"
-    )
 
     nonisolated static let supabase = SwiftPackageDependency(
         yamlKey: "Supabase",

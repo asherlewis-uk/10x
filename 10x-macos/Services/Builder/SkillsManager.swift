@@ -190,8 +190,7 @@ enum SkillPresentation {
             return "Backend"
         case "supabase":
             return "Supabase"
-        case "superwall":
-            return "Superwall"
+        // Superwall removed in 11x local cockpit
         case "app-store-assets":
             return "App Store Assets"
         case "monetization":
@@ -231,8 +230,7 @@ enum SkillPresentation {
             return "Plan and operate the managed Supabase backend path with named functions, backend secrets, deploy approvals, and no-proxy rules."
         case "supabase":
             return "Wire up Supabase auth, database access, RLS-aware client flows, and provider configuration with iOS-safe patterns."
-        case "superwall":
-            return "Wire up Superwall account linking, paywall placements, dashboard bootstrap, test-mode setup, and subscription-aware iOS runtime flows."
+        // Superwall removed in 11x local cockpit
         case "app-store-assets":
             return "Generate premium App Store icons, screenshots, and listing copy with cohesive art direction, stronger color taste, and captured app views."
         case "monetization":

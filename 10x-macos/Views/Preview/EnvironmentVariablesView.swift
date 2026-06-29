@@ -118,7 +118,7 @@ struct EnvironmentVariablesView: View {
             applyPendingIntegrationFocusIfNeeded()
             if selectedIntegration == .supabase {
                 loadSupabaseManagementStateIfNeeded(force: !hasLoadedSupabaseManagementState)
-            } else if selectedIntegration == .superwall {
+            } else if selectedIntegration == .supabase {
                 loadSuperwallManagementStateIfNeeded(force: !hasLoadedSuperwallManagementState)
             }
             refreshSupabaseSchemaPreviewIfNeeded()
@@ -129,7 +129,7 @@ struct EnvironmentVariablesView: View {
         .onChange(of: selectedIntegration) { _, _ in
             if selectedIntegration == .supabase {
                 loadSupabaseManagementStateIfNeeded()
-            } else if selectedIntegration == .superwall {
+            } else if selectedIntegration == .supabase {
                 loadSuperwallManagementStateIfNeeded()
             }
             refreshSupabaseSchemaPreviewIfNeeded()
@@ -156,7 +156,7 @@ struct EnvironmentVariablesView: View {
             syncDraft(force: true)
             if selectedIntegration == .supabase {
                 loadSupabaseManagementStateIfNeeded(force: true)
-            } else if selectedIntegration == .superwall {
+            } else if selectedIntegration == .supabase {
                 loadSuperwallManagementStateIfNeeded(force: true)
             }
         }
@@ -218,7 +218,7 @@ struct EnvironmentVariablesView: View {
         selectedIntegration = id
         if id == .supabase {
             loadSupabaseManagementStateIfNeeded(force: !hasLoadedSupabaseManagementState)
-        } else if id == .superwall {
+        } else if id == .supabase {
             loadSuperwallManagementStateIfNeeded(force: !hasLoadedSuperwallManagementState)
         }
     }
@@ -316,7 +316,7 @@ struct EnvironmentVariablesView: View {
                         supabaseDatabaseVisualizer
                     }
                 }
-            } else if definition.id == .superwall {
+            } else if definition.id == .supabase {
                 if shouldShowSuperwallLoadingPanel {
                     superwallLoadingPanel
                 } else if shouldShowSuperwallProjectLinkingPanel {
@@ -494,7 +494,7 @@ struct EnvironmentVariablesView: View {
     }
 
     private var shouldAutoRefreshSuperwallProjects: Bool {
-        selectedIntegration == .superwall && shouldShowSuperwallProjectLinkingPanel
+        selectedIntegration == .supabase && shouldShowSuperwallProjectLinkingPanel
     }
 
     private var superwallAutoRefreshTaskKey: String {
@@ -780,7 +780,8 @@ struct EnvironmentVariablesView: View {
         let assetName = switch id {
         case .openAI: "OpenAILogo"
         case .supabase: "SupabaseLogo"
-        case .superwall: "SuperwallLogo"
+        // Superwall removed in 11x local cockpit
+        case .supabase: "SuperwallLogo"
         }
 
         if id == .openAI {
@@ -3477,17 +3478,8 @@ struct EnvironmentVariablesView: View {
             return
         }
 
-        let allProjects = viewModel.projects + viewModel.archivedProjects
-        superwallLinkedProjectNamesByApplicationID = Dictionary(
-            uniqueKeysWithValues: allProjects.compactMap { project in
-                guard project.id != currentProjectID,
-                      let applicationID = project.superwallState?.applicationID,
-                      !applicationID.isEmpty else {
-                    return nil
-                }
-                return (applicationID, project.name)
-            }
-        )
+        // Superwall removed in 11x local cockpit
+        superwallLinkedProjectNamesByApplicationID = [:]
     }
 
     private func syncSelectedSuperwallContextFromState() {
@@ -3738,16 +3730,16 @@ struct EnvironmentVariablesView: View {
         guard !trimmedValue.isEmpty else { return }
 
         let nextVariables: [ProjectEnvironmentVariable]? = await MainActor.run {
-            let currentValue = managedDrafts[.superwall]?["SUPERWALL_PUBLIC_API_KEY"]?
+            let currentValue = managedDrafts[.supabase]?["SUPERWALL_PUBLIC_API_KEY"]?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard currentValue != trimmedValue,
-                  let field = ProjectIntegrations.definition(for: .superwall).fields.first(where: { $0.envKey == "SUPERWALL_PUBLIC_API_KEY" }) else {
+                  let field = ProjectIntegrations.definition(for: .supabase).fields.first(where: { $0.envKey == "SUPERWALL_PUBLIC_API_KEY" }) else {
                 return nil
             }
 
-            var values = managedDrafts[.superwall] ?? [:]
+            var values = managedDrafts[.supabase] ?? [:]
             values["SUPERWALL_PUBLIC_API_KEY"] = trimmedValue
-            managedDrafts[.superwall] = values
+            managedDrafts[.supabase] = values
             statusMessage = nil
 
             var mergedVariables = payloadVariables.filter { $0.normalizedKey != "SUPERWALL_PUBLIC_API_KEY" }

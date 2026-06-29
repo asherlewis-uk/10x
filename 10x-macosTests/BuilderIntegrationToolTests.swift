@@ -56,24 +56,6 @@ final class BuilderIntegrationToolTests: XCTestCase {
         XCTAssertTrue(withSupabase.contains("supabase_manage_settings"))
     }
 
-    func testSuperwallToolsAppearOnlyWhenAccessIsAvailable() {
-        let withoutSuperwall = Set(
-            BuilderToolDefinitions.tools(
-                for: .build,
-                integrationAvailability: .init(hasSupabaseAccess: true, hasSuperwallAccess: false)
-            ).compactMap { $0["name"] as? String }
-        )
-        let withSuperwall = Set(
-            BuilderToolDefinitions.tools(
-                for: .build,
-                integrationAvailability: .init(hasSupabaseAccess: true, hasSuperwallAccess: true)
-            ).compactMap { $0["name"] as? String }
-        )
-
-        XCTAssertFalse(withoutSuperwall.contains("superwall_manage"))
-        XCTAssertTrue(withSuperwall.contains("superwall_manage"))
-    }
-
     func testBackendManageSchemaIncludesBackendFields() {
         let tools = BuilderToolDefinitions.tools(
             for: .build,
@@ -122,24 +104,6 @@ final class BuilderIntegrationToolTests: XCTestCase {
         XCTAssertTrue(readDescription?.contains("storage.buckets") == true)
         XCTAssertTrue(writeDescription?.contains("storage.buckets") == true)
         XCTAssertTrue(sqlDescription?.contains("storage bucket setup") == true)
-    }
-
-    func testSuperwallManageSchemaIncludesBootstrapFields() {
-        let tools = BuilderToolDefinitions.tools(
-            for: .build,
-            integrationAvailability: .init(hasSupabaseAccess: false, hasSuperwallAccess: true)
-        )
-        let tool = tools.first { ($0["name"] as? String) == "superwall_manage" }
-        let schema = tool?["input_schema"] as? [String: Any]
-        let properties = schema?["properties"] as? [String: Any]
-
-        XCTAssertNotNil(properties?["action"])
-        XCTAssertNotNil(properties?["organization_id"])
-        XCTAssertNotNil(properties?["project_id"])
-        XCTAssertNotNil(properties?["application_id"])
-        XCTAssertNotNil(properties?["paywall_id"])
-        XCTAssertNotNil(properties?["preview_app_user_id"])
-        XCTAssertNotNil(properties?["placements"])
     }
 
     func testSupabaseReadDoesNotRequireApproval() async {
@@ -233,60 +197,6 @@ final class BuilderIntegrationToolTests: XCTestCase {
 
         XCTAssertEqual(result.text, "Approval required before change Supabase auth settings.")
         XCTAssertEqual(result.approvalRequest?.scope, "settings")
-    }
-
-    func testSuperwallStatusDoesNotRequireApproval() async {
-        let executor = makeExecutor()
-
-        let result = await executor.execute(
-            toolName: "superwall_manage",
-            input: ["action": "status"]
-        )
-
-        XCTAssertEqual(result.text, "superwall status ok")
-        XCTAssertNil(result.approvalRequest)
-    }
-
-    func testSuperwallBootstrapRequiresApprovalUntilGranted() async {
-        let executor = makeExecutor()
-
-        let initialResult = await executor.execute(
-            toolName: "superwall_manage",
-            input: ["action": "bootstrap_project"]
-        )
-
-        XCTAssertEqual(
-            initialResult.text,
-            "Approval required before create or link the Superwall project and iOS application for this builder project."
-        )
-        XCTAssertEqual(initialResult.approvalRequest?.integration, "superwall")
-        XCTAssertEqual(initialResult.approvalRequest?.scope, "bootstrap")
-
-        if let approval = initialResult.approvalRequest {
-            await executor.grantIntegrationApproval(approval)
-        }
-
-        let approvedResult = await executor.execute(
-            toolName: "superwall_manage",
-            input: ["action": "bootstrap_project"]
-        )
-
-        XCTAssertEqual(approvedResult.text, "superwall bootstrap ok")
-    }
-
-    func testSuperwallStarterBootstrapRequiresApproval() async {
-        let executor = makeExecutor()
-
-        let result = await executor.execute(
-            toolName: "superwall_manage",
-            input: ["action": "bootstrap_starter_monetization"]
-        )
-
-        XCTAssertEqual(
-            result.text,
-            "Approval required before attach starter Superwall products and the preview campaign to the selected paywall."
-        )
-        XCTAssertEqual(result.approvalRequest?.scope, "campaigns")
     }
 
     func testBackendDeployRequiresApprovalUntilGranted() async {
@@ -738,24 +648,6 @@ final class BuilderIntegrationToolTests: XCTestCase {
         XCTAssertEqual(dependency.id, "supabase")
         XCTAssertEqual(dependency.integrationID, .supabase)
         XCTAssertEqual(dependency.envKeys, ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"])
-        XCTAssertEqual(dependency.safety, .clientRuntime)
-        XCTAssertTrue(dependency.allowsMockDataUntilConfigured)
-    }
-
-    func testDependencyManifestInfersSuperwallDefaultsFromLooseObject() throws {
-        let manifest = ProjectDependencyManifest(
-            toolInput: [
-                "dependencies": [
-                    ["title": "Superwall"],
-                ],
-            ]
-        )
-
-        XCTAssertEqual(manifest?.dependencies.count, 1)
-        let dependency = try XCTUnwrap(manifest?.dependencies.first)
-        XCTAssertEqual(dependency.id, "superwall")
-        XCTAssertEqual(dependency.integrationID, .superwall)
-        XCTAssertEqual(dependency.envKeys, ["SUPERWALL_PUBLIC_API_KEY"])
         XCTAssertEqual(dependency.safety, .clientRuntime)
         XCTAssertTrue(dependency.allowsMockDataUntilConfigured)
     }

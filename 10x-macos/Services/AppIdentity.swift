@@ -14,7 +14,7 @@ enum AppIdentity {
     nonisolated static let localBadgeTitle = "11x"
     nonisolated static let localBadgeDetails = [
         "Single-user cockpit",
-        "Local backend",
+        "Unlimited local",
         "No billing",
     ]
 

@@ -8,7 +8,6 @@ private let homePromptEditorVerticalInset: CGFloat = 8
 /// Home screen — create a new project or open a recent one.
 struct HomeView: View {
     @Environment(BuilderViewModel.self) private var viewModel
-    @Environment(BillingViewModel.self) private var billing
     @Environment(AuthManager.self) private var auth
     @State private var prompt = ""
     @State private var projectToRename: BuilderProject?
@@ -344,7 +343,7 @@ struct HomeView: View {
 
                             if displayedProjects.isEmpty {
                                 if shouldShowSubscriptionPrompt {
-                                    emptyProjectsSubscriptionCard
+                                    emptyProjectsInfoCard
                                 } else {
                                     Text(showingArchivedProjects ? "No archived projects yet." : "No recent projects yet.")
                                         .font(Theme.geist(12))
@@ -510,10 +509,10 @@ struct HomeView: View {
         }
     }
 
-    private var emptyProjectsSubscriptionCard: some View {
+    private var emptyProjectsInfoCard: some View {
         VStack(alignment: .leading, spacing: Theme.spacingMD) {
             HStack(alignment: .top, spacing: Theme.spacingMD) {
-                Image(systemName: "creditcard.and.123")
+                Image(systemName: "app.badge")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(Theme.accent)
                     .frame(width: 30, height: 30)
@@ -523,29 +522,16 @@ struct HomeView: View {
                     )
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Start with a plan or credit pack")
+                    Text("Create your first project")
                         .font(Theme.geist(14, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
 
-                    Text("You need credits before projects can start running here. Open plans and packs to pick a subscription or one-time top-up.")
+                    Text("11x is an unlimited single-user local cockpit. Start a new project to begin building.")
                         .font(Theme.geist(12))
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-
-            Button {
-                openPlansAndPacks()
-            } label: {
-                Text("View Plans And Packs")
-                    .font(Theme.geist(13, weight: .semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Theme.accent)
-                    .foregroundStyle(Color.black.opacity(0.85))
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            }
-            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.spacingLG)
@@ -557,11 +543,6 @@ struct HomeView: View {
                         .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
                 )
         )
-    }
-
-    private func openPlansAndPacks() {
-        billing.presentCatalog()
-        NotificationCenter.default.post(name: .tenxOpenBillingCatalog, object: nil)
     }
 
     private func projectTabButton(

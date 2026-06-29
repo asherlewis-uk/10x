@@ -4,7 +4,7 @@ import Foundation
 /// These match the Anthropic tool_use JSON schema format.
 struct BuilderIntegrationToolAvailability: Sendable {
     var hasSupabaseAccess: Bool = false
-    var hasSuperwallAccess: Bool = false
+    // Superwall removed in 11x local cockpit — always false
 
     static let none = BuilderIntegrationToolAvailability()
 }
@@ -507,9 +507,7 @@ enum BuilderToolDefinitions {
         if availability.hasSupabaseAccess {
             groups.append(supabaseTools)
         }
-        if availability.hasSuperwallAccess {
-            groups.append(superwallTools)
-        }
+        // Superwall tools removed in 11x local cockpit
         return groups
     }
 

@@ -297,7 +297,7 @@ nonisolated struct ProjectDependencyRequirement: Codable, Sendable, Identifiable
             switch integrationID {
             case .supabase:
                 return .clientRuntime
-            case .superwall:
+            // Superwall removed in 11x local cockpit
                 return .clientRuntime
             case .openAI:
                 return .backendOnly
@@ -453,9 +453,7 @@ private extension ProjectIntegrationID {
         if normalized.contains("supabase") {
             return .supabase
         }
-        if normalized.contains("superwall") {
-            return .superwall
-        }
+        // Superwall removed in 11x local cockpit
         if normalized.contains("openai") {
             return .openAI
         }
@@ -469,8 +467,7 @@ private extension ProjectIntegrationID {
             return "OpenAI"
         case .supabase:
             return "Supabase"
-        case .superwall:
-            return "Superwall"
+        // Superwall removed in 11x local cockpit
         }
     }
 
@@ -480,8 +477,7 @@ private extension ProjectIntegrationID {
             return ["OPENAI_API_KEY"]
         case .supabase:
             return ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"]
-        case .superwall:
-            return ["SUPERWALL_PUBLIC_API_KEY"]
+        // Superwall removed in 11x local cockpit
         }
     }
 
@@ -491,8 +487,7 @@ private extension ProjectIntegrationID {
             return "Configure the OpenAI integration before using live AI responses."
         case .supabase:
             return "Connect the built-in Supabase integration in Integrations."
-        case .superwall:
-            return "Connect the built-in Superwall integration in Integrations."
+        // Superwall removed in 11x local cockpit
         }
     }
 }

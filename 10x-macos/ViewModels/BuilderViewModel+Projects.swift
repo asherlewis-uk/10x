@@ -337,8 +337,7 @@ extension BuilderViewModel {
         let hasSupabaseAccess = projectRef != nil && SupabaseManagementOAuthService.shared.hasUsableSession()
         let hasSuperwallAccess = SuperwallManagementTokenStore().hasAPIKey()
         return BuilderIntegrationToolAvailability(
-            hasSupabaseAccess: hasSupabaseAccess,
-            hasSuperwallAccess: hasSuperwallAccess
+            hasSupabaseAccess: hasSupabaseAccess
         )
     }
 
@@ -418,7 +417,7 @@ extension BuilderViewModel {
             projectDependencyManifest: activeProject?.dependencyManifest
         )
         projectBackendState = activeProject?.backendState ?? .empty
-        projectSuperwallState = activeProject?.superwallState ?? .empty
+        // Superwall removed in 11x local cockpit
         let hadLocalChats = await initializeChats(
             projectName: projectName,
             projectId: projectId,
@@ -661,9 +660,9 @@ extension BuilderViewModel {
 
         var mergedSettings = project.settings ?? [:]
         if state != .empty, let encoded = AnyCodableValue.encode(state) {
-            mergedSettings[BuilderProject.superwallStateSettingsKey] = encoded
+            mergedSettings[""] = encoded
         } else {
-            mergedSettings.removeValue(forKey: BuilderProject.superwallStateSettingsKey)
+            mergedSettings.removeValue(forKey: "")
         }
 
         do {

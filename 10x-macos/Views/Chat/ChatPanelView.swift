@@ -3,7 +3,6 @@ import SwiftUI
 
 struct ChatPanelView: View {
     @Environment(BuilderViewModel.self) private var viewModel
-    @Environment(BillingViewModel.self) private var billing
     @Environment(AuthManager.self) private var auth
     @State private var isNearBottom = true
     @State private var shouldFollowLive = true
@@ -889,8 +888,7 @@ struct ChatPanelView: View {
     }
 
     private func openPlansAndPacks() {
-        billing.presentCatalog()
-        NotificationCenter.default.post(name: .tenxOpenBillingCatalog, object: nil)
+        // Billing catalog is disabled in 11x local cockpit
     }
 
     private func isBillingUpgradeMessage(_ message: String) -> Bool {

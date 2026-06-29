@@ -437,7 +437,7 @@ extension BuilderViewModel {
         buildFixMessageId: String? = nil
     ) async {
         guard !isGenerating else {
-            print("[billing-debug] builder.preview.skip reason=is_generating")
+            // Billing debug removed in 11x local cockpit
             return
         }
         guard !fileTree.isEmpty,
@@ -447,7 +447,7 @@ extension BuilderViewModel {
         let name = project.name
         let workspaceDescriptor = project.workspaceDescriptor
         print(
-            "[billing-debug] builder.preview.start billingGroupId=\(currentBillingGroupId ?? "nil") autoFixIfNeeded=\(autoFixIfNeeded) projectId=\(activeProject?.id ?? "nil")"
+            "[debug] builder.preview.start autoFixIfNeeded=\(autoFixIfNeeded) projectId=\(activeProject?.id ?? "nil")"
         )
         let previewRunID = UUID()
         activePreviewRunID = previewRunID
@@ -548,7 +548,7 @@ extension BuilderViewModel {
             guard isCurrentPreviewRun(previewRunID) else { return }
             if let errors = buildCheckErrors {
                 print(
-                    "[billing-debug] builder.preview.build_failed billingGroupId=\(currentBillingGroupId ?? "nil") autoFixIfNeeded=\(autoFixIfNeeded)"
+                    "[debug] builder.preview.build_failed autoFixIfNeeded=\(autoFixIfNeeded)"
                 )
                 buildError = errors
                 lastPreviewCompileError = errors
@@ -605,7 +605,7 @@ extension BuilderViewModel {
         } catch {
             guard isCurrentPreviewRun(previewRunID) else { return }
             print(
-                "[billing-debug] builder.preview.error billingGroupId=\(currentBillingGroupId ?? "nil") autoFixIfNeeded=\(autoFixIfNeeded) error=\(error.localizedDescription)"
+                "[debug] builder.preview.error autoFixIfNeeded=\(autoFixIfNeeded) error=\(error.localizedDescription)"
             )
             buildError = error.localizedDescription
             lastPreviewCompileError = BuilderBuildFixSupport.automaticBuildFixErrorMessage(from: error)

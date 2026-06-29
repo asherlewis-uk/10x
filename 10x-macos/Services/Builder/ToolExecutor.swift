@@ -161,7 +161,7 @@ actor ToolExecutor {
         case "backend_manage":
             return await executeBackendManage(input)
         case "superwall_manage":
-            return await executeSuperwallManage(input)
+            return ToolResult(text: "Superwall is not available in 11x local cockpit.", fileEvent: nil)
         default:
             return ToolResult(text: "Unknown tool: \(toolName)", fileEvent: nil)
         }

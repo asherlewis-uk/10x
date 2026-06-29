@@ -3,24 +3,13 @@ import SwiftUI
 enum SettingsSection: String, CaseIterable, Identifiable {
     case general = "General"
     case usage = "Usage"
-    case billing = "Billing"
 
     var id: String { rawValue }
-
-    var isAvailableInBeta: Bool {
-        switch self {
-        case .billing:
-            return !Config.billingTestMode
-        case .general, .usage:
-            return true
-        }
-    }
 
     var icon: String {
         switch self {
         case .general: "gearshape"
         case .usage: "chart.bar"
-        case .billing: "creditcard"
         }
     }
 }
@@ -57,10 +46,7 @@ struct SettingsView: View {
 
     private func sidebarItem(_ section: SettingsSection) -> some View {
         let isSelected = selectedSection == section
-        let isAvailable = section.isAvailableInBeta
-
         return Button {
-            guard isAvailable else { return }
             withAnimation(.easeOut(duration: 0.12)) {
                 selectedSection = section
             }
@@ -69,23 +55,15 @@ struct SettingsView: View {
                 Image(systemName: section.icon)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(
-                        isAvailable
-                            ? (isSelected ? Theme.accent : Theme.textSecondary)
-                            : Theme.textTertiary
+                        isSelected ? Theme.accent : Theme.textSecondary
                     )
                     .frame(width: 20)
 
                 Text(section.rawValue)
-                    .font(Theme.geist(13, weight: isSelected && isAvailable ? .semibold : .medium))
+                    .font(Theme.geist(13, weight: isSelected ? .semibold : .medium))
                     .foregroundStyle(
-                        isAvailable
-                            ? (isSelected ? Theme.textPrimary : Theme.textSecondary)
-                            : Theme.textTertiary
+                        isSelected ? Theme.textPrimary : Theme.textSecondary
                     )
-
-                if !isAvailable {
-                    SettingsMetaChip(text: "Beta")
-                }
 
                 Spacer()
             }
@@ -96,7 +74,7 @@ struct SettingsView: View {
                 RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous)
                     .fill(
                         isSelected
-                            ? Theme.surfaceElevated.opacity(isAvailable ? 1 : 0.58)
+                            ? Theme.surfaceElevated
                             : Color.clear
                     )
             )
@@ -107,7 +85,6 @@ struct SettingsView: View {
             .contentShape(RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(!isAvailable)
     }
 
     // MARK: - Content
@@ -119,35 +96,7 @@ struct SettingsView: View {
             GeneralSettingsView()
         case .usage:
             UsageSettingsView()
-        case .billing:
-            if Config.billingTestMode {
-                BillingDisabledSettingsView()
-            } else {
-                BillingView()
-            }
-        }
-    }
-}
-
-struct BillingDisabledSettingsView: View {
-    var body: some View {
-        SettingsPageContainer(maxWidth: 760) {
-            SettingsPageHeader("Billing") {
-                SettingsMetaChip(text: "Disabled")
-            }
-
-            SettingsPanel("Billing Access") {
-                VStack(alignment: .leading, spacing: Theme.spacingMD) {
-                    Text("Billing is disabled for the current app build.")
-                        .font(Theme.geist(14, weight: .semibold))
-                        .foregroundStyle(Theme.textPrimary)
-
-                    Text("Stripe checkout, plan management, and invoices are hidden until billing is enabled for this build configuration.")
-                        .font(Theme.geist(13))
-                        .foregroundStyle(Theme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+        // Billing removed in 11x local cockpit
         }
     }
 }

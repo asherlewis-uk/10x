@@ -88,7 +88,7 @@ enum AppFeature: String, CaseIterable, Identifiable {
         case .uploadTrack: "Log entries, track progress over time"
         case .messaging: "Chat, DMs, real-time conversations"
         case .mapsLocation: "Map views, pins, nearby discovery"
-        case .marketplace: "Buy, sell, or list items with pricing"
+        case .marketplace: "Buy, sell, or list items"
         case .profiles: "User accounts, avatars, bios"
         case .camera: "Capture, upload, edit photos"
         case .dashboard: "Charts, metrics, summaries"

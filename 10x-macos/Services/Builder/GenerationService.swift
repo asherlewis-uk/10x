@@ -96,8 +96,8 @@ actor GenerationService {
         accessTokenProvider: (@MainActor @Sendable () async -> String?)? = nil,
         projectId: String?,
         sessionId: String?,
-        billingGroupId: String,
-        billingMessagePreview: String?,
+        billingGroupId: String = "",
+        billingMessagePreview: String? = nil,
         maxTokens: Int = 64_000,
         onClaudeCallFinished: (@Sendable () async -> Void)? = nil,
         onEvent: @MainActor @Sendable @escaping (GenerationEvent) async -> Void
@@ -466,8 +466,8 @@ actor GenerationService {
         accessToken: String,
         projectId: String?,
         sessionId: String?,
-        billingGroupId: String,
-        billingMessagePreview: String?,
+        billingGroupId: String = "",
+        billingMessagePreview: String? = nil,
         onEvent: @MainActor @Sendable @escaping (GenerationEvent) async -> Void
     ) async throws -> StreamResult {
         var body: [String: Any] = [

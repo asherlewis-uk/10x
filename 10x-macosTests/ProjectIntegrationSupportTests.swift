@@ -95,20 +95,6 @@ final class ProjectIntegrationSupportTests: XCTestCase {
         XCTAssertTrue(skill?.content.contains("Ask for approval before deploys") == true)
     }
 
-    func testBundledSuperwallSkillIsAvailableLocally() {
-        let skill = BundledSkillsCatalog.skill(named: "superwall")
-
-        XCTAssertNotNil(skill)
-        XCTAssertEqual(skill?.name, "superwall")
-        XCTAssertTrue(skill?.content.contains("Prefer the built-in Connect Superwall flow in Integrations.") == true)
-        XCTAssertTrue(skill?.content.contains("The org-scoped Superwall management API key belongs in local Keychain only.") == true)
-        XCTAssertTrue(skill?.content.contains("`SUPERWALL_PUBLIC_API_KEY` is the only Superwall key that should enter the app runtime.") == true)
-        XCTAssertTrue(skill?.content.contains("When Superwall is connected and `superwall_manage` is available, use it") == true)
-        XCTAssertTrue(skill?.content.contains("Do not collapse the app into one generic `showPaywall` placement.") == true)
-        XCTAssertTrue(skill?.content.contains("visual paywall editing happens in Superwall") == true)
-        XCTAssertTrue(skill?.content.contains("App code / 10x scope") == true)
-    }
-
     func testBuilderPromptsPreferSupabaseIntegrationFlowOverManualKeys() {
         let prompt = BuilderPrompts.systemPrompt(mode: .build)
 
@@ -190,26 +176,6 @@ final class ProjectIntegrationSupportTests: XCTestCase {
         )
     }
 
-    func testBuilderPromptsPreferSuperwallIntegrationFlowOverManualKeys() {
-        let prompt = BuilderPrompts.systemPrompt(mode: .build)
-
-        XCTAssertTrue(
-            prompt.contains("Superwall SDK integration, paywall placements, campaigns, entitlements, products, dashboard/API automation, and subscription-state requests should load `superwall`.")
-        )
-        XCTAssertTrue(
-            prompt.contains("Pricing, trial design, upgrade timing, and paywall conversion strategy should load `monetization`.")
-        )
-        XCTAssertTrue(
-            prompt.contains("Prefer the built-in Connect Superwall flow plus `superwall_manage` for Superwall setup.")
-        )
-        XCTAssertTrue(
-            prompt.contains("Do not ask the user to paste the org-scoped Superwall API key or `SUPERWALL_PUBLIC_API_KEY` into chat.")
-        )
-        XCTAssertTrue(
-            prompt.contains("explain what is owned by iOS code versus the Superwall dashboard")
-        )
-    }
-
     func testPlanPromptDefaultsToMockFirstBeforeIntegrations() {
         let prompt = BuilderPrompts.systemPrompt(mode: .plan)
 
@@ -266,23 +232,15 @@ final class ProjectIntegrationSupportTests: XCTestCase {
         XCTAssertTrue(prefix.contains("offer 2-4 short name ideas"))
     }
 
-    func testBuilderPromptContextIncludesSupabaseAndSuperwallSetupGuidance() {
+    func testBuilderPromptContextIncludesSupabaseSetupGuidance() {
         let context = BuilderPrompts.messageContext(
             mode: .build,
             projectName: "Wanderlist",
             currentFileTree: [:],
             plan: nil,
-            superwallState: ProjectSuperwallState(
-                applicationID: "app_1",
-                applicationName: "Wanderlist iOS",
-                applicationDashboardURL: "https://superwall.com/applications/app_1/rules",
-                paywallID: "pw_1",
-                paywallName: "Starter Paywall"
-            ),
             environmentVariables: [
                 ProjectEnvironmentVariable(key: "SUPABASE_URL", value: "https://abc123.supabase.co"),
                 ProjectEnvironmentVariable(key: "SUPABASE_PUBLISHABLE_KEY", value: "sb_publishable_test"),
-                ProjectEnvironmentVariable(key: "SUPERWALL_PUBLIC_API_KEY", value: "pk_test_123"),
             ]
         )
         let prefix = context.prefixMessages.joined(separator: "\n")
@@ -290,9 +248,8 @@ final class ProjectIntegrationSupportTests: XCTestCase {
         XCTAssertTrue(prefix.contains("## Project Supabase"))
         XCTAssertTrue(prefix.contains("https://supabase.com/dashboard/project/abc123/auth/providers"))
         XCTAssertTrue(prefix.contains("https://supabase.com/dashboard/project/abc123/auth/url-configuration"))
-        XCTAssertTrue(prefix.contains("## Project Superwall"))
-        XCTAssertTrue(prefix.contains("https://superwall.com/applications/app_1/rules"))
-        XCTAssertTrue(prefix.contains("https://superwall.com/applications/app_1/paywalls"))
+        XCTAssertFalse(prefix.contains("## Project Superwall"))
+        XCTAssertFalse(prefix.contains("https://superwall.com/applications/app_1/rules"))
         XCTAssertTrue(prefix.contains("Tell the user exactly what is managed where"))
         XCTAssertTrue(prefix.contains("do not recite these variable names unless the user explicitly asks which keys are present"))
     }
@@ -330,128 +287,32 @@ final class ProjectIntegrationSupportTests: XCTestCase {
         XCTAssertEqual(project.dependencyManifest, manifest)
     }
 
-    func testBuilderProjectDecodesSuperwallStateFromSettings() {
-        let state = ProjectSuperwallState(
-            organizationID: "1",
-            organizationName: "Acme",
-            projectID: "proj_123",
-            projectName: "Acme Paywall",
-            applicationID: "app_123",
-            applicationName: "Acme iOS",
-            applicationPlatform: "ios",
-            applicationPublicAPIKey: "pk_test_123",
-            applicationDashboardURL: "https://superwall.com/applications/app_123/rules",
-            importedBundleID: "com.10x.generated.acme",
-            selectedTemplateID: "template_1",
-            selectedTemplateName: "Starter",
-            previewAppUserID: "tenx-preview-project-1",
-            entitlements: [
-                .init(id: "ent_1", identifier: "pro", name: "Pro"),
-            ],
-            products: [
-                .init(id: "prod_1", identifier: "com.10x.generated.acme.pro.monthly", name: "Monthly", period: "month", trialPeriodDays: nil),
-            ],
-            paywallID: "paywall_1",
-            paywallName: "Starter Paywall",
-            campaignID: "campaign_1",
-            campaignName: "Preview Campaign",
-            placements: ["upgrade_prompt", "onboarding_complete"],
-            bootstrapStatus: .starterReady,
-            lastSyncedAt: "2026-01-01T00:00:00Z"
-        )
-        let project = BuilderProject(
-            id: "project-1",
-            userId: "user-1",
-            name: "Iron",
-            description: nil,
-            slug: "iron",
-            platform: "swiftui",
-            status: "active",
-            currentVersionId: nil,
-            settings: [
-                BuilderProject.superwallStateSettingsKey: AnyCodableValue.encode(state) ?? .null,
-            ],
-            createdAt: "2026-01-01T00:00:00Z",
-            updatedAt: "2026-01-01T00:00:00Z"
-        )
-
-        XCTAssertEqual(project.superwallState, state)
-    }
-
     func testBundledRegistryIncludesLocalSkills() {
         let names = Set(BundledSkillsCatalog.registry.map(\.name))
 
         XCTAssertTrue(names.contains("ai-models"))
         XCTAssertTrue(names.contains("backend"))
         XCTAssertTrue(names.contains("supabase"))
-        XCTAssertTrue(names.contains("superwall"))
+        XCTAssertFalse(names.contains("superwall"))
     }
 
     func testManagedIntegrationsExposeExpectedFields() {
         let openAI = ProjectIntegrations.definition(for: .openAI)
         let supabase = ProjectIntegrations.definition(for: .supabase)
-        let superwall = ProjectIntegrations.definition(for: .superwall)
         let openAIFields = Set(openAI.fields.map(\.envKey))
         let supabaseFields = Set(supabase.fields.map(\.envKey))
-        let superwallFields = Set(superwall.fields.map(\.envKey))
 
         XCTAssertEqual(openAIFields, Set(["OPENAI_API_KEY"]))
         XCTAssertEqual(supabaseFields, Set(["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_PUBLISHABLE_KEY"]))
-        XCTAssertEqual(superwallFields, Set(["SUPERWALL_PUBLIC_API_KEY"]))
         XCTAssertEqual(Set(openAI.hostedFields.map(\.envKey)), Set(["OPENAI_API_KEY"]))
         XCTAssertEqual(Set(openAI.clientFields.map(\.envKey)), Set<String>())
         XCTAssertEqual(Set(supabase.clientFields.map(\.envKey)), supabaseFields)
         XCTAssertTrue(supabase.hostedFields.isEmpty)
-        XCTAssertEqual(Set(superwall.clientFields.map(\.envKey)), superwallFields)
-        XCTAssertTrue(superwall.hostedFields.isEmpty)
         XCTAssertFalse(openAIFields.contains("OPENAI_BASE_URL"))
         XCTAssertFalse(openAIFields.contains("OPENAI_MODEL"))
         XCTAssertFalse(supabaseFields.contains("SUPABASE_MANAGEMENT_TOKEN"))
         XCTAssertFalse(supabaseFields.contains("SUPABASE_DB_PASSWORD"))
         XCTAssertFalse(supabaseFields.contains("SUPABASE_DB_URL"))
-        XCTAssertFalse(superwallFields.contains("SUPERWALL_API_KEY"))
-    }
-
-    func testSuperwallExactIOSApplicationRequiresBundleMatch() {
-        let project = SuperwallManagementProject(
-            id: "proj_123",
-            organizationID: "org_123",
-            name: "Paywall",
-            applications: [
-                SuperwallManagementApplication(
-                    id: "app_old",
-                    platform: "ios",
-                    name: "Old App",
-                    publicAPIKey: "pk_test_old",
-                    bundleID: "com.example.old",
-                    appID: nil,
-                    slug: nil,
-                    integrated: true,
-                    archivedAt: nil,
-                    featuresEnabled: []
-                ),
-                SuperwallManagementApplication(
-                    id: "app_new",
-                    platform: "ios",
-                    name: "New App",
-                    publicAPIKey: "pk_test_new",
-                    bundleID: "com.example.new",
-                    appID: nil,
-                    slug: nil,
-                    integrated: true,
-                    archivedAt: nil,
-                    featuresEnabled: []
-                ),
-            ],
-            archived: false,
-            metadata: [:],
-            createdAt: nil,
-            updatedAt: nil
-        )
-
-        XCTAssertEqual(project.exactIOSApplication(matching: "com.example.new")?.id, "app_new")
-        XCTAssertEqual(project.exactIOSApplication(matching: "COM.EXAMPLE.NEW")?.id, "app_new")
-        XCTAssertNil(project.exactIOSApplication(matching: "com.example.missing"))
     }
 
     func testSetupGuidanceDisappearsOnceManagedIntegrationIsConfigured() {
