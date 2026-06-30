@@ -46,3 +46,4 @@ output/
 
 # Local agent runtime/cache state
 .agents/
+LOCAL_CHEATSHEET.md
