@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AB00000100000000000000F3 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = AB00000100000000000000F2 /* Supabase */; };
 		AB00000200000000000000F3 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = AB00000200000000000000F2 /* Sparkle */; };
 /* End PBXBuildFile section */
 
@@ -42,7 +41,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AB00000100000000000000F3 /* Supabase in Frameworks */,
 				AB00000200000000000000F3 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -86,7 +84,6 @@
 			);
 			name = "10x-macos";
 			packageProductDependencies = (
-				AB00000100000000000000F2 /* Supabase */,
 				AB00000200000000000000F2 /* Sparkle */,
 			);
 			productName = 11x;
@@ -118,7 +115,6 @@
 			mainGroup = C7A3C1892F5E5E47001B0B82;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				AB00000100000000000000F1 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				AB00000200000000000000F1 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -279,7 +275,7 @@
 		C7A3C19E2F5E5E47001B0B82 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				API_BASE_URL = "http://localhost:8000";
+				API_BASE_URL = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "10x-macos/10x_macos.entitlements";
@@ -307,8 +303,8 @@
 				SPARKLE_FEED_URL = "";
 				SPARKLE_PUBLIC_ED_KEY = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPABASE_ANON_KEY = sb_publishable_your_key;
-				SUPABASE_URL = "https://your-project-ref.supabase.co";
+				SUPABASE_ANON_KEY = "";
+				SUPABASE_URL = "";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -321,7 +317,7 @@
 		C7A3C19F2F5E5E47001B0B82 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				API_BASE_URL = "https://api.example.invalid/";
+				API_BASE_URL = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "10x-macos/10x_macos_release.entitlements";
@@ -350,8 +346,8 @@
 				SPARKLE_FEED_URL = "";
 				SPARKLE_PUBLIC_ED_KEY = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPABASE_ANON_KEY = sb_publishable_your_key;
-				SUPABASE_URL = "https://your-project-ref.supabase.co";
+				SUPABASE_ANON_KEY = "";
+				SUPABASE_URL = "";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -385,14 +381,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		AB00000100000000000000F1 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/supabase/supabase-swift.git";
-			requirement = {
-				kind = exactVersion;
-				version = 2.41.1;
-			};
-		};
 		AB00000200000000000000F1 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle.git";
@@ -404,11 +392,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		AB00000100000000000000F2 /* Supabase */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AB00000100000000000000F1 /* XCRemoteSwiftPackageReference "supabase-swift" */;
-			productName = Supabase;
-		};
 		AB00000200000000000000F2 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = AB00000200000000000000F1 /* XCRemoteSwiftPackageReference "Sparkle" */;
