@@ -238,7 +238,7 @@ struct LoginView: View {
     private var systemCheckFooter: some View {
         VStack(spacing: 14) {
             if systemCheck.allResolved {
-                Text("Everything looks ready. Continue to account setup.")
+                Text("Everything looks ready. Continue to the local cockpit.")
                     .font(Theme.geist(12, weight: .medium))
                     .foregroundStyle(Theme.textSecondary)
                     .multilineTextAlignment(.center)

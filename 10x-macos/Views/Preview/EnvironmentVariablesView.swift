@@ -99,6 +99,8 @@ struct EnvironmentVariablesView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.spacingLG) {
+                localModeBanner
+
                 if let selectedIntegration {
                     integrationDetail(ProjectIntegrations.definition(for: selectedIntegration))
                 } else {
@@ -186,6 +188,35 @@ struct EnvironmentVariablesView: View {
                 }
             }
         }
+    }
+
+    private var localModeBanner: some View {
+        HStack(alignment: .top, spacing: Theme.spacingMD) {
+            Image(systemName: "info.circle.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+                .padding(.top, 1)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Vendor integrations are disabled in 11x")
+                    .font(Theme.geist(13, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+
+                Text("11x is a local cockpit. Supabase, Superwall, and hosted third-party dashboards are not connected. Local project environment variables and provider settings still work.")
+                    .font(Theme.geist(12))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+        }
+        .padding(Theme.spacingLG)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous)
+                .stroke(Theme.accent.opacity(0.2), lineWidth: 1)
+        )
     }
 
     private var integrationsIndex: some View {

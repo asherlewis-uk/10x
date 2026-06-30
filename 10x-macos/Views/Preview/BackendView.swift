@@ -100,6 +100,35 @@ struct BackendView: View {
         return "Connect Supabase in Integrations, then link Backend so functions, secrets, and logs stay in one place."
     }
 
+    private var localModeBanner: some View {
+        HStack(alignment: .top, spacing: Theme.spacingMD) {
+            Image(systemName: "info.circle.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+                .padding(.top, 1)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Hosted backend management is not available in 11x")
+                    .font(Theme.geist(13, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+
+                Text("11x is a local cockpit. Backend deploy, hosted secrets, and vendor-managed functions are disabled. Use local export to move your project to your own infrastructure.")
+                    .font(Theme.geist(12))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+        }
+        .padding(Theme.spacingLG)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous)
+                .stroke(Theme.accent.opacity(0.2), lineWidth: 1)
+        )
+    }
+
     private var pendingSecretCount: Int {
         backendSecrets.filter { $0.lastSyncedAt == nil }.count
     }
@@ -147,6 +176,8 @@ struct BackendView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.spacingXL) {
+                localModeBanner
+
                 overviewCard
 
                 if warningCount > 0 {

@@ -217,7 +217,7 @@ private struct ChromeTabStrip<Actions: View>: View {
             (.development, "Development", "hammer"),
             (.environment, "Integrations", "link"),
             (.backend, "Backend", "server.rack"),
-            (.review, "App Store", "sparkles.rectangle.stack"),
+            (.review, "Review", "sparkles.rectangle.stack"),
             (.production, "Production", "shippingbox"),
         ]
     }

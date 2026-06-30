@@ -2,6 +2,7 @@ import SwiftUI
 
 enum SettingsSection: String, CaseIterable, Identifiable {
     case general = "General"
+    case provider = "Provider"
     case usage = "Usage"
 
     var id: String { rawValue }
@@ -9,6 +10,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .general: "gearshape"
+        case .provider: "network"
         case .usage: "chart.bar"
         }
     }
@@ -94,9 +96,10 @@ struct SettingsView: View {
         switch selectedSection {
         case .general:
             GeneralSettingsView()
+        case .provider:
+            ProviderSettingsView()
         case .usage:
             UsageSettingsView()
-        // Billing removed in 11x local cockpit
         }
     }
 }
@@ -252,271 +255,6 @@ struct SettingsMetaChip: View {
                 Capsule()
                     .stroke(Theme.separator, lineWidth: 1)
             )
-    }
-}
-
-struct SettingsUsageDetail: Identifiable {
-    let label: String
-    let value: String
-
-    var id: String { label }
-}
-
-enum SettingsRecentUsageAmountStyle {
-    case usage(BillingPlan?)
-    case signedUsage(BillingPlan?)
-
-    var detailLabel: String {
-        switch self {
-        case .usage:
-            "Cost"
-        case .signedUsage:
-            "Spend"
-        }
-    }
-
-    func text(for charge: BillingMessageCharge) -> String {
-        guard charge.totalCredits != 0 else { return "Free" }
-        switch self {
-        case .usage(let plan):
-            return BillingDisplay.usageAmount(for: charge.totalCredits, using: plan)
-        case .signedUsage(let plan):
-            return BillingDisplay.signedUsageAmount(for: charge.totalCredits, using: plan)
-        }
-    }
-}
-
-struct SettingsRecentUsageSection: View {
-    let title: String
-    let charges: [BillingMessageCharge]
-    let limit: Int?
-    let emptyMessage: String
-    let amountStyle: SettingsRecentUsageAmountStyle
-
-    @State private var expandedChargeIDs: Set<String> = []
-
-    init(
-        title: String = "Recent Usage",
-        charges: [BillingMessageCharge],
-        limit: Int? = 12,
-        emptyMessage: String = "No usage yet.",
-        amountStyle: SettingsRecentUsageAmountStyle
-    ) {
-        self.title = title
-        self.charges = charges
-        self.limit = limit
-        self.emptyMessage = emptyMessage
-        self.amountStyle = amountStyle
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Theme.spacingMD) {
-            HStack(alignment: .firstTextBaseline, spacing: Theme.spacingMD) {
-                Text(title)
-                    .font(Theme.geist(16, weight: .semibold))
-                    .foregroundStyle(Theme.textPrimary)
-
-                Spacer(minLength: Theme.spacingMD)
-
-                if let summaryText {
-                    Text(summaryText)
-                        .font(Theme.geistMono(11, weight: .semibold))
-                        .foregroundStyle(Theme.textTertiary)
-                }
-            }
-
-            if charges.isEmpty {
-                Text(emptyMessage)
-                    .font(Theme.geist(13))
-                    .foregroundStyle(Theme.textSecondary)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(displayedCharges.enumerated()), id: \.element.id) { index, charge in
-                        recentUsageRow(charge)
-
-                        if index < displayedCharges.count - 1 {
-                            Rectangle()
-                                .fill(Theme.separator)
-                                .frame(height: 1)
-                                .padding(.leading, Theme.spacingLG)
-                        }
-                    }
-                }
-                .background(Theme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous)
-                        .stroke(Theme.separator, lineWidth: 1)
-                )
-            }
-        }
-        .padding(.horizontal, Theme.spacingLG)
-        .padding(.vertical, Theme.spacingLG)
-        .settingsPanelCard()
-    }
-
-    private func fallbackTitle(for charge: BillingMessageCharge) -> String {
-        if charge.isImageGeneration {
-            return "Image Generation"
-        }
-        return charge.taskType
-            .replacingOccurrences(of: "_", with: " ")
-            .capitalized
-    }
-
-    private var displayedCharges: [BillingMessageCharge] {
-        guard let limit else { return charges }
-        return Array(charges.prefix(limit))
-    }
-
-    private var summaryText: String? {
-        guard !charges.isEmpty else { return nil }
-        if let limit, charges.count > limit {
-            return "\(displayedCharges.count) of \(charges.count) shown"
-        }
-        return "\(charges.count) recent"
-    }
-
-    private func recentUsageRow(_ charge: BillingMessageCharge) -> some View {
-        let isExpanded = expandedChargeIDs.contains(charge.id)
-
-        return VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.16)) {
-                    toggleExpansion(for: charge.id)
-                }
-            } label: {
-                HStack(alignment: .top, spacing: Theme.spacingMD) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(charge.messagePreview ?? fallbackTitle(for: charge))
-                            .font(Theme.geist(13, weight: .semibold))
-                            .foregroundStyle(Theme.textPrimary)
-                            .lineLimit(2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        Text(summaryText(for: charge))
-                            .font(Theme.geist(11))
-                            .foregroundStyle(Theme.textSecondary)
-                            .lineLimit(1)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer(minLength: Theme.spacingMD)
-
-                    VStack(alignment: .trailing, spacing: 6) {
-                        Text(amountStyle.text(for: charge))
-                            .font(Theme.geistMono(12, weight: .semibold))
-                            .foregroundStyle(charge.totalCredits == 0 ? Theme.accent : Theme.textPrimary)
-
-                        HStack(spacing: 8) {
-                            if showsCollapsedStatus(for: charge.primaryStatus) {
-                                collapsedStatusLabel(for: charge.primaryStatus)
-                            }
-
-                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Theme.textTertiary)
-                        }
-                    }
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, Theme.spacingLG)
-            .padding(.vertical, 10)
-
-            if isExpanded {
-                Rectangle()
-                    .fill(Theme.separator)
-                    .frame(height: 1)
-                    .padding(.leading, Theme.spacingLG)
-
-                VStack(alignment: .leading, spacing: Theme.spacingSM) {
-                    ForEach(detailRows(for: charge)) { detail in
-                        usageDetailRow(detail)
-                    }
-                }
-                .padding(.horizontal, Theme.spacingLG)
-                .padding(.vertical, Theme.spacingMD)
-                .background(Theme.surfaceInset.opacity(0.35))
-            }
-        }
-    }
-
-    private func toggleExpansion(for id: String) {
-        if expandedChargeIDs.contains(id) {
-            expandedChargeIDs.remove(id)
-        } else {
-            expandedChargeIDs.insert(id)
-        }
-    }
-
-    private func showsCollapsedStatus(for status: String) -> Bool {
-        let normalized = status.lowercased()
-        return !normalized.isEmpty && !["completed", "paid", "success", "succeeded"].contains(normalized)
-    }
-
-    private func collapsedStatusLabel(for status: String) -> some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(Theme.billingStatusTint(status))
-                .frame(width: 6, height: 6)
-
-            Text(BillingDisplay.statusLabel(status))
-                .font(Theme.geistMono(10, weight: .semibold))
-                .foregroundStyle(Theme.billingStatusTint(status))
-        }
-    }
-
-    private func usageDetailRow(_ detail: SettingsUsageDetail) -> some View {
-        HStack(alignment: .top, spacing: Theme.spacingLG) {
-            Text(detail.label)
-                .font(Theme.geistMono(10, weight: .semibold))
-                .foregroundStyle(Theme.textTertiary)
-
-            Spacer(minLength: Theme.spacingLG)
-
-            Text(detail.value)
-                .font(Theme.geist(12, weight: .medium))
-                .foregroundStyle(Theme.textPrimary)
-                .multilineTextAlignment(.trailing)
-        }
-    }
-
-    private func summaryText(for charge: BillingMessageCharge) -> String {
-        "\(BillingDisplay.dateTime(charge.createdAt)) • \(charge.summaryLabel)"
-    }
-
-    private func detailRows(for charge: BillingMessageCharge) -> [SettingsUsageDetail] {
-        var details = [
-            SettingsUsageDetail(label: "When", value: BillingDisplay.dateTime(charge.createdAt)),
-            SettingsUsageDetail(label: "Task", value: charge.taskLabel),
-            SettingsUsageDetail(label: "Status", value: charge.statusLabel),
-            SettingsUsageDetail(label: amountStyle.detailLabel, value: amountStyle.text(for: charge))
-        ]
-
-        if let model = charge.model, !model.isEmpty {
-            details.insert(SettingsUsageDetail(label: "Model", value: model), at: 2)
-        }
-
-        if charge.isImageGeneration {
-            let count = charge.displayedImageCount
-            details.append(
-                SettingsUsageDetail(
-                    label: "Images",
-                    value: "\(BillingDisplay.integer(count)) image\(count == 1 ? "" : "s")"
-                )
-            )
-        } else {
-            details.append(SettingsUsageDetail(label: "Input", value: BillingDisplay.integer(charge.inputTokens)))
-            details.append(SettingsUsageDetail(label: "Output", value: BillingDisplay.integer(charge.outputTokens)))
-        }
-
-        if charge.callCount > 1 {
-            details.append(SettingsUsageDetail(label: "Calls", value: BillingDisplay.integer(charge.callCount)))
-        }
-
-        return details
     }
 }
 

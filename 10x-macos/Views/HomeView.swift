@@ -120,7 +120,7 @@ struct HomeView: View {
         true
     }
 
-    private var shouldShowSubscriptionPrompt: Bool {
+    private var shouldShowEmptyProjectsInfo: Bool {
         !showingArchivedProjects
             && viewModel.hasLoadedProjects
             && !viewModel.isLoadingProjects
@@ -342,7 +342,7 @@ struct HomeView: View {
                             projectTabsHeader
 
                             if displayedProjects.isEmpty {
-                                if shouldShowSubscriptionPrompt {
+                                if shouldShowEmptyProjectsInfo {
                                     emptyProjectsInfoCard
                                 } else {
                                     Text(showingArchivedProjects ? "No archived projects yet." : "No recent projects yet.")
@@ -999,7 +999,7 @@ struct HomeView: View {
             guard let token = await auth.validAccessToken() else {
                 await MainActor.run {
                     isImportingProject = false
-                    promptComposerError = "Sign in before importing an existing project."
+                    promptComposerError = "Local profile is not ready. Check Settings > General."
                 }
                 return
             }

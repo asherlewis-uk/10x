@@ -17,7 +17,7 @@ struct OnboardingView: View {
     @State private var selectedStyleId: String? = "clean-minimal"
     @State private var imageAttachments: [URL] = []
 
-    private let totalSteps = 3
+    private let totalSteps = 4
 
     init(
         appDescription: String,
@@ -47,8 +47,9 @@ struct OnboardingView: View {
 
                 Group {
                     switch step {
-                    case 0: centeredStepContent { designStep }
-                    case 1: centeredStepContent { targetAudienceStep }
+                    case 0: centeredStepContent { localCockpitStep }
+                    case 1: centeredStepContent { designStep }
+                    case 2: centeredStepContent { targetAudienceStep }
                     default: centeredStepContent { detailsStep }
                     }
                 }
@@ -210,7 +211,66 @@ struct OnboardingView: View {
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // MARK: - STEP 1: Design Style (merged inspiration + colors)
+    // MARK: - STEP 1: Local Cockpit
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    private var localCockpitStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            stepHeader(
+                title: "Welcome to 11x",
+                subtitle: "Your unlimited single-user local cockpit"
+            )
+
+            VStack(alignment: .leading, spacing: 12) {
+                localCockpitBullet(
+                    icon: "lock.fill",
+                    title: "No login required",
+                    detail: "A single local profile lives on your Mac. No vendor auth, no cloud account."
+                )
+                localCockpitBullet(
+                    icon: "creditcard.fill",
+                    title: "No billing or credits",
+                    detail: "Generation and export are unlimited. There are no paywalls, subscriptions, or credit packs."
+                )
+                localCockpitBullet(
+                    icon: "internaldrive.fill",
+                    title: "Local storage",
+                    detail: "Projects, generations, and assets are stored in your local Application Support folder."
+                )
+                localCockpitBullet(
+                    icon: "network",
+                    title: "Your own provider",
+                    detail: "Connect an OpenAI-compatible endpoint in Settings > Provider. Your key is stored in the system keychain."
+                )
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    private func localCockpitBullet(icon: String, title: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 24, height: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+
+                Text(detail)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+        }
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // MARK: - STEP 2: Design Style (merged inspiration + colors)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     private struct AppDesignStyle: Identifiable {

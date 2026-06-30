@@ -1,42 +1,43 @@
 import SwiftUI
 
 struct GeneralSettingsView: View {
-    @Environment(AuthManager.self) private var auth
-    @State private var selectedUpdateChannel = AppUpdateChannel.preferredChannel()
+    @State private var databasePath = ""
+    @State private var assetStoragePath = ""
+    @State private var providerStatus = ""
+    @State private var isLoading = true
 
     var body: some View {
         SettingsPageContainer {
             SettingsPageHeader("Settings")
-            profileCard
-            supportCard
-            updatesCard
-            sessionCard
+            cockpitCard
+            storageCard
+            versionCard
         }
         .task {
-            // Billing refresh disabled in 11x local cockpit
+            await loadLocalStatus()
         }
     }
 
-    // MARK: - Profile Card
+    // MARK: - Local Cockpit Card
 
-    private var profileCard: some View {
-        SettingsPanel("Account") {
+    private var cockpitCard: some View {
+        SettingsPanel("Local Cockpit") {
             HStack(alignment: .center, spacing: Theme.spacingLG) {
                 ZStack {
                     Circle()
                         .fill(Theme.accent.opacity(0.12))
-                    Text(initials)
+                    Text("11")
                         .font(Theme.geist(20, weight: .semibold))
                         .foregroundStyle(Theme.accent)
                 }
                 .frame(width: 56, height: 56)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(auth.userEmail ?? "No email on file")
+                    Text(AppIdentity.displayName)
                         .font(Theme.geist(18, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
 
-                    Text("Unlimited local cockpit")
+                    Text(AppIdentity.localBadgeDetails.joined(separator: " · "))
                         .font(Theme.geist(12, weight: .medium))
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -45,105 +46,68 @@ struct GeneralSettingsView: View {
             }
 
             VStack(spacing: Theme.spacingSM) {
-                if let email = auth.userEmail {
-                    SettingsInsetRow {
-                        accountRow(label: "Email", value: email)
-                    }
+                SettingsInsetRow {
+                    statusRow(label: "Mode", value: "Single-user local cockpit")
                 }
 
-                if let userId = auth.userId {
-                    SettingsInsetRow {
-                        accountRow(label: "User ID", value: userId, monospace: true)
-                    }
-                }
-            }
-        }
-    }
-
-    private var supportCard: some View {
-        SettingsPanel("Support") {
-            SettingsInsetRow {
-                accountRow(label: "Email", value: "support@example.invalid")
-            }
-        }
-    }
-
-    // MARK: - Updates
-
-    private var updatesCard: some View {
-        SettingsPanel("Updates") {
-            VStack(alignment: .leading, spacing: Theme.spacingLG) {
-                HStack(alignment: .firstTextBaseline, spacing: Theme.spacingMD) {
-                    Text("Update Channel")
-                        .font(Theme.geist(14, weight: .semibold))
-                        .foregroundStyle(Theme.textPrimary)
-
-                    Spacer()
-
-                    SettingsMetaChip(text: "Build default: \(Config.defaultUpdateChannel.title)")
+                SettingsInsetRow {
+                    statusRow(label: "Billing", value: "Disabled")
                 }
 
-                Picker("Update Channel", selection: updateChannelBinding) {
-                    ForEach(AppUpdateChannel.allCases) { channel in
-                        Text(channel.title).tag(channel)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                Text(selectedUpdateChannel.summary)
-                    .font(Theme.geist(12))
-                    .foregroundStyle(Theme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                VStack(spacing: Theme.spacingSM) {
-                    SettingsInsetRow {
-                        accountRow(label: "Version", value: Config.appVersion, monospace: true)
-                    }
-
-                    SettingsInsetRow {
-                        accountRow(label: "Build", value: Config.appBuild, monospace: true)
-                    }
-
-                    SettingsInsetRow {
-                        accountRow(label: "Feed", value: Config.sparkleFeedURL)
-                    }
+                SettingsInsetRow {
+                    statusRow(label: "Hosted deploy", value: "Disabled")
                 }
             }
         }
     }
 
-    // MARK: - Sign Out
+    // MARK: - Storage Card
 
-    private var sessionCard: some View {
-        SettingsPanel("Session") {
-            Button(role: .destructive) {
-                auth.signOut()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                        .font(.system(size: 13))
-                    Text("Sign Out")
-                        .font(Theme.geist(13, weight: .medium))
+    private var storageCard: some View {
+        SettingsPanel("Storage") {
+            VStack(spacing: Theme.spacingSM) {
+                SettingsInsetRow {
+                    statusRow(
+                        label: "Database",
+                        value: databasePath.isEmpty ? "Unavailable" : databasePath,
+                        monospace: true
+                    )
                 }
-                .foregroundStyle(Theme.error)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Theme.error.opacity(0.06))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Theme.error.opacity(0.15), lineWidth: 1)
-                )
+
+                SettingsInsetRow {
+                    statusRow(
+                        label: "Assets",
+                        value: assetStoragePath.isEmpty ? "Unavailable" : assetStoragePath,
+                        monospace: true
+                    )
+                }
+
+                SettingsInsetRow {
+                    statusRow(label: "Provider", value: providerStatus)
+                }
             }
-            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Version Card
+
+    private var versionCard: some View {
+        SettingsPanel("Version") {
+            VStack(spacing: Theme.spacingSM) {
+                SettingsInsetRow {
+                    statusRow(label: "Version", value: Config.appVersion, monospace: true)
+                }
+
+                SettingsInsetRow {
+                    statusRow(label: "Build", value: Config.appBuild, monospace: true)
+                }
+            }
         }
     }
 
     // MARK: - Helpers
 
-    private func accountRow(label: String, value: String, monospace: Bool = false) -> some View {
+    private func statusRow(label: String, value: String, monospace: Bool = false) -> some View {
         HStack(alignment: .top, spacing: Theme.spacingLG) {
             Text(label)
                 .font(Theme.geist(12, weight: .medium))
@@ -160,26 +124,26 @@ struct GeneralSettingsView: View {
         }
     }
 
-    private func defaultPlanStateLabel(for plan: BillingPlan) -> String {
-        plan.priceCents == 0 ? "Free plan" : "Current plan"
-    }
+    private func loadLocalStatus() async {
+        let dbURL = CockpitDatabase.defaultDatabaseURL()
+        let assetURL = LocalAssetStorage.defaultAssetRootURL()
 
-    private var initials: String {
-        guard let email = auth.userEmail else { return "?" }
-        let parts = email.split(separator: "@").first?.split(separator: ".") ?? []
-        if parts.count >= 2 {
-            return String(parts[0].prefix(1) + parts[1].prefix(1)).uppercased()
-        }
-        return String(email.prefix(2)).uppercased()
-    }
+        let repository = ProviderConfigRepository()
+        let config = await repository.loadConfig()
+        let hasKey = await repository.apiKey() != nil
 
-    private var updateChannelBinding: Binding<AppUpdateChannel> {
-        Binding(
-            get: { selectedUpdateChannel },
-            set: { newValue in
-                selectedUpdateChannel = newValue
-                newValue.persist()
+        await MainActor.run {
+            databasePath = dbURL.path
+            assetStoragePath = assetURL.path
+            if let config {
+                let ready = hasKey && !config.baseURL.isEmpty && !config.model.isEmpty
+                providerStatus = ready
+                    ? "\(config.model) via \(config.baseURL)"
+                    : "Provider setup required"
+            } else {
+                providerStatus = "Provider not configured"
             }
-        )
+            isLoading = false
+        }
     }
 }

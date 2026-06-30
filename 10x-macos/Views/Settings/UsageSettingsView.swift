@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct UsageSettingsView: View {
-    @Environment(AuthManager.self) private var auth
-
     var body: some View {
         SettingsPageContainer {
             SettingsPageHeader("Usage") {
@@ -19,8 +17,31 @@ struct UsageSettingsView: View {
                         .font(Theme.geist(13))
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    VStack(alignment: .leading, spacing: Theme.spacingXS) {
+                        localStatusRow(icon: "creditcard.fill", text: "No billing or credits")
+                        localStatusRow(icon: "lock.fill", text: "No paywalls or subscriptions")
+                        localStatusRow(icon: "server.rack", text: "No hosted vendor backend dependency")
+                        localStatusRow(icon: "chart.bar", text: "Local usage logs only")
+                    }
+                    .padding(.top, Theme.spacingSM)
                 }
             }
+        }
+    }
+
+    private func localStatusRow(icon: String, text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 16, height: 16)
+
+            Text(text)
+                .font(Theme.geist(12))
+                .foregroundStyle(Theme.textSecondary)
+
+            Spacer()
         }
     }
 }

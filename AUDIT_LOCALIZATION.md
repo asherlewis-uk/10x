@@ -1409,3 +1409,70 @@ Surfaces retained as local/export-only:
 - Full deletion of `AppStoreReview*` / `AppStoreSubmission*` model and renderer types was intentionally not performed; they remain as local/export-only artifacts.
 - `scripts/release/` contents were not modified; only noted in the audit.
 - No push performed.
+
+## Pass 09 — Local Cockpit UX Reseat
+
+### Pass Scope And Evidence
+
+Pass executed: Pass 09 only, local cockpit UX reseat.
+
+Runtime behavior changed:
+
+- Settings now surfaces local cockpit status: database path, asset storage path, provider status, and local-mode notes.
+- A new Provider settings pane exposes OpenAI-compatible endpoint configuration, key-present/missing status, and local-cockpit privacy notes without revealing the key.
+- Onboarding now starts with a local-cockpit welcome step explaining no login, no billing, local storage, and BYOK provider setup.
+- HomeView empty-state copy no longer references subscriptions; import errors no longer say "Sign in".
+- Preview tab label changed from "App Store" to "Review".
+- Backend and Integrations views now show a local-mode banner explaining hosted vendor management is disabled in 11x.
+- Remaining billing-specific UI components removed from `SettingsView`.
+
+Files created:
+
+- `10x-macos/Views/Settings/ProviderSettingsView.swift`
+- `10x-macosTests/LocalCockpitUXTests.swift`
+
+Files modified:
+
+- `10x-macos/Views/Settings/SettingsView.swift`
+- `10x-macos/Views/Settings/GeneralSettingsView.swift`
+- `10x-macos/Views/Settings/UsageSettingsView.swift`
+- `10x-macos/Views/HomeView.swift`
+- `10x-macos/Views/Onboarding/OnboardingView.swift`
+- `10x-macos/Views/Auth/LoginView.swift`
+- `10x-macos/Views/Preview/PreviewPanelView.swift`
+- `10x-macos/Views/Preview/BackendView.swift`
+- `10x-macos/Views/Preview/EnvironmentVariablesView.swift`
+
+### Inventory Findings
+
+Surfaces inventoried and updated:
+
+- `SettingsView` still contained billing-specific `SettingsRecentUsageSection`, `SettingsRecentUsageAmountStyle`, and `BillingPlan`/`BillingMessageCharge`/`BillingDisplay` references. These were removed.
+- `GeneralSettingsView` still showed Account email/user ID, Sign Out, Sparkle feed row, and a dead `defaultPlanStateLabel(for:)` helper. Replaced with local cockpit status card, storage status card, and version card.
+- `UsageSettingsView` already showed local diagnostics; enhanced with explicit "No billing/credits/paywalls/hosted backend" status rows.
+- `HomeView` still had a property named `shouldShowSubscriptionPrompt` and import error "Sign in before importing". Renamed to `shouldShowEmptyProjectsInfo` and rewrote error to local-profile message.
+- `OnboardingView` was design-only; added a step-0 local cockpit welcome.
+- `LoginView` said "Continue to account setup"; updated to "Continue to the local cockpit."
+- `PreviewPanelView` still labeled the review tab "App Store"; changed to "Review".
+- `BackendView` and `EnvironmentVariablesView` still presented Supabase/Superwall/hosted integration UIs without a local-mode disclaimer; added top-of-page banners.
+
+Surfaces intentionally retained as local/export artifacts:
+
+- `ReviewView` App Store submission packet editing and export remains as a local artifact; hosted publishing remains disabled with local-mode messages (Pass 08).
+- `ProductionView` release-path copy already describes local export and the user's own pipeline (Pass 08).
+- Generated-app metadata toggles for accounts/subscriptions remain because they describe the generated app, not 11x itself.
+
+### Verification
+
+- `git diff --check` passed.
+- `xcodebuild -project 10x-macos.xcodeproj -scheme 10x-macos -configuration Debug -derivedDataPath .derivedData/10x-macos build CODE_SIGNING_ALLOWED=NO` passed and produced `.derivedData/10x-macos/Build/Products/Debug/11x.app`.
+- `xcrun swift test` passed: 206 tests, 0 failures.
+- Pass-specific tests added and passing:
+  - `LocalCockpitUXTests`: local badge copy, no billing settings section, entitlements disable monetization, missing provider key produces setup error, provider metadata excludes key, local asset storage path, export not gated by billing, local profile authenticates without remote login, first project creation without remote login, project state persists after reload.
+- Targeted source scan: no active billing/credit/pricing UI remains in `SettingsView`, `GeneralSettingsView`, `UsageSettingsView`, `HomeView`, `OnboardingView`, or `LoginView`.
+
+### Remaining Notes
+
+- Full deletion of Supabase/Superwall/billing backend code remains a later pass; Pass 09 only updated user-facing copy and added local status surfaces.
+- `scripts/release/` contents were not modified.
+- No push performed.
