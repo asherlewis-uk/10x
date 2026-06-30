@@ -872,15 +872,6 @@ struct ChatPanelView: View {
         )
     }
 
-    private func openPlansAndPacks() {
-        // Billing catalog is disabled in 11x local cockpit
-    }
-
-    private func isBillingUpgradeMessage(_ message: String) -> Bool {
-        _ = message.lowercased()
-        return false
-    }
-
 }
 
 private struct SkillSuggestionsOverlay: View {

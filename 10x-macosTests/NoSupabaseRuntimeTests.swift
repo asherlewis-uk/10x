@@ -58,8 +58,15 @@ final class NoSupabaseRuntimeTests: XCTestCase {
     }
 
     /// Config no longer exposes Supabase URL/key values as active defaults.
-    func testConfigSupabaseDefaultsAreInert() {
-        XCTAssertTrue(Config.supabaseURL.contains("supabase.co") || Config.supabaseURL.isEmpty || Config.supabaseURL.hasPrefix("https://your-project"))
-        XCTAssertTrue(Config.supabaseAnonKey.hasPrefix("sb_publishable_your") || Config.supabaseAnonKey.hasPrefix("sb_publishable_"))
+    func testConfigSupabaseDefaultsAreEmpty() {
+        XCTAssertTrue(Config.supabaseURL.isEmpty, "Supabase URL default must be empty in 11x: \(Config.supabaseURL)")
+        XCTAssertTrue(Config.supabaseAnonKey.isEmpty, "Supabase anon key default must be empty in 11x: \(Config.supabaseAnonKey)")
+    }
+
+    /// No hosted vendor backend is enabled by default.
+    func testConfigHostedEndpointsAreEmpty() {
+        XCTAssertTrue(Config.apiBaseURL.isEmpty, "API base URL must be empty: \(Config.apiBaseURL)")
+        XCTAssertTrue(Config.hostedAppsBaseURL.isEmpty, "Hosted apps base URL must be empty: \(Config.hostedAppsBaseURL)")
+        XCTAssertTrue(Config.hostedAppsDisplayHost.isEmpty, "Hosted apps display host must be empty: \(Config.hostedAppsDisplayHost)")
     }
 }

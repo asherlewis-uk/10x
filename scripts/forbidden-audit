@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+
+usage() {
+  cat <<EOF
+Usage:
+  ./scripts/forbidden-audit [options]
+
+Proves the 11x runtime is no longer dependent on vendor monetization,
+Supabase, Superwall, hosted deploy, or vendor updater feeds.
+
+Active runtime checks (default):
+  - No Supabase/Superwall module imports in runtime source
+  - No active vendor endpoint defaults in Config or Info.plist
+  - No billing/pricing/paywall settings routes
+  - No credit gate controlling generation/export
+
+Legacy code inventory (--inventory):
+  - Also scans for any remaining references in runtime source.
+  - Reports warnings, not failures, so progress can be tracked.
+
+Options:
+  -h, --help      Show this help
+  --inventory     Also print a full legacy-code inventory and continue
+  --strict        Treat legacy-code inventory hits as failures
+EOF
+}
+
+INVENTORY=false
+STRICT=false
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help) usage; exit 0 ;;
+    --inventory) INVENTORY=true ;;
+    --strict) STRICT=true ;;
+    *) echo "Unknown option: $arg" >&2; usage >&2; exit 1 ;;
+  esac
+done
+
+cd "$ROOT"
+
+RUNTIME_SWIFT=(
+  10x-macos/Config.swift
+  10x-macos/ContentView.swift
+  10x-macos/GlassEffectCompat.swift
+  10x-macos/Models
+  10x-macos/Services
+  10x-macos/Theme.swift
+  10x-macos/ViewModels
+  10x-macos/Views
+  10x-evals
+)
+
+EXCLUDE_ARGS=(
+  --exclude-dir=.git
+  --exclude-dir=.build
+  --exclude-dir=.derivedData
+  --exclude-dir=node_modules
+  --exclude-dir=Assets.xcassets
+  --exclude-dir=migrations
+  --exclude='*Tests.swift'
+)
+
+# Files that are allowed to retain legacy/generated-app references because they
+# describe the generated app or are retained as local-only artifacts. Any new
+# forbidden reference outside these files is treated as an active violation.
+LEGACY_ALLOWLIST=(
+  "10x-macos/Models/BillingModels.swift"
+  "10x-macos/Models/ProjectSuperwall.swift"
+  "10x-macos/Models/ProjectIntegrations.swift"
+  "10x-macos/Models/ProductionGuide.swift"
+  "10x-macos/Services/SuperwallManagementService.swift"
+  "10x-macos/Services/SupabaseService.swift"
+  "10x-macos/Services/SupabaseManagementService.swift"
+  "10x-macos/Services/SupabaseManagementOAuthService.swift"
+  "10x-macos/Services/SupabaseSchemaVisualizer.swift"
+  "10x-macos/Services/AppStoreSubmissionFactCollector.swift"
+  "10x-macos/Services/AppStoreReviewRenderer.swift"
+  "10x-macos/Services/Builder/BuilderPrompts.swift"
+  "10x-macos/Services/Builder/BundledSkillsCatalog.swift"
+  "10x-macos/Views/Preview/EnvironmentVariablesView.swift"
+  "10x-macos/Views/Preview/ReviewView.swift"
+  "10x-macos/ViewModels/BuilderViewModel+AppStoreSubmission.swift"
+  "10x-macos/ViewModels/BuilderViewModel+Review.swift"
+  "10x-macos/ViewModels/BuilderViewModel+Generation.swift"
+  "10x-macos/ViewModels/BuilderViewModel+Projects.swift"
+)
+
+is_allowlisted() {
+  local path="$1"
+  for allowed in "${LEGACY_ALLOWLIST[@]}"; do
+    if [[ "$path" == *"$allowed"* ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+FAILURES=0
+WARNINGS=0
+
+collect_hits() {
+  local pattern="$1"
+  grep -RInE "${EXCLUDE_ARGS[@]}" "$pattern" "${RUNTIME_SWIFT[@]}" 2>/dev/null || true
+}
+
+filter_allowlisted() {
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    local path="${line%%:*}"
+    if ! is_allowlisted "$path"; then
+      echo "$line"
+    fi
+  done
+}
+
+report_check() {
+  local label="$1"
+  local pattern="$2"
+  local severity="${3:-error}"
+  local hits
+  hits="$(collect_hits "$pattern" | filter_allowlisted)"
+
+  if [[ -n "$hits" ]]; then
+    if [[ "$severity" == "error" ]]; then
+      echo "=== $label ==="
+      FAILURES=$((FAILURES + 1))
+    else
+      echo "=== $label (warnings) ==="
+      WARNINGS=$((WARNINGS + 1))
+    fi
+    echo "$hits"
+  fi
+}
+
+# 1. Active runtime import checks (must be clean).
+report_check "Supabase runtime imports" 'import[[:space:]]+Supabase' error
+report_check "Superwall runtime imports" 'import[[:space:]]+Superwall' error
+
+# 2. Active vendor endpoint / feed configuration (must be inert).
+report_check "Active vendor API defaults in Config" 'https?://[^"[:space:]]*\.(superwall\.com|supabase\.co|10x\.app|downloads\.example)' error
+report_check "Active Sparkle feed defaults" 'SUFeedURL.*[^=]"[^"]+"|SUEnableAutomaticChecks.*true|downloads\.example' error
+
+# 3. Active monetization UI / routes in non-test runtime source (must be clean).
+report_check "Active billing/pricing/paywall UI routes" 'SettingsSection\.(billing|plans)|BillingPlan|BillingDisplay|openPlansAndPacks\(\)|PaywallView|PurchaseButton' error
+
+# 4. Active credit gate controlling generation/export (must be clean).
+report_check "Active credit gate" 'creditsRemaining\s*<\s*[0-9]|creditsEnabled\s*&&\s*.*canGenerate|canPurchaseCredits\s*&&\s*.*export' error
+
+if [[ "$INVENTORY" == true || "$STRICT" == true ]]; then
+  severity=warning
+  [[ "$STRICT" == true ]] && severity=error
+  report_check "Legacy monetization code inventory" 'Superwall|superwall|paywall|pricing|credits?|billing|subscription|purchase|receipt|StoreKit|RevenueCat|Stripe|checkout' "$severity"
+  report_check "Legacy Supabase code inventory" 'Supabase|supabase|@supabase|SUPABASE|anonKey|service_role|service-role|createClient' "$severity"
+  report_check "Legacy hosted deploy / updater inventory" 'api\.superwall\.com|superwall\.com|downloads\.example|apiBaseURL|hostedAppsBaseURL|sparkleFeedURL|SUFeedURL|api\.10x\.app|app\.10x\.macos' "$severity"
+fi
+
+if [[ "$INVENTORY" == true ]]; then
+  echo
+  echo "Legacy code inventory printed above. Warnings do not block the audit."
+fi
+
+if [[ $FAILURES -gt 0 ]]; then
+  echo
+  echo "Forbidden audit failed: $FAILURES active runtime violation categories found."
+  exit 1
+fi
+
+if [[ $WARNINGS -gt 0 ]]; then
+  echo
+  echo "Forbidden audit passed for active runtime with $WARNINGS legacy-inventory warning categories."
+  echo "Re-run with --strict to fail on legacy references, or --inventory to see details."
+else
+  echo
+  echo "Forbidden audit passed: no active runtime violations."
+fi

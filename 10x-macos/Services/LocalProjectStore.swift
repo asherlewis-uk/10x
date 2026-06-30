@@ -93,8 +93,13 @@ struct ProjectSnapshot: Codable, Sendable {
 actor LocalProjectStore {
     private let assetStorage = LocalAssetStorage()
 
+    /// Optional test override for the project storage root. When nil, the real
+    /// Application Support/11x directory is used. Marked unsafe because it is only
+    /// mutated from tests and read from nonisolated directory helpers.
+    nonisolated(unsafe) static var testBaseDirectoryOverride: URL?
+
     nonisolated static var baseDirectory: URL {
-        AppIdentity.appSupportDirectory
+        testBaseDirectoryOverride ?? AppIdentity.appSupportDirectory
     }
 
     // MARK: - Directory helpers

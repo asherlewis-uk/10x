@@ -174,7 +174,7 @@ actor SupabaseService {
             versionId: versionId,
             createdAt: BuilderChat.timestamp()
         )
-        try await messages.addMessage(message)
+        try await messages.addMessage(message, projectId: conversationId)
         return message
     }
 

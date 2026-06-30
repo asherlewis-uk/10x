@@ -1476,3 +1476,72 @@ Surfaces intentionally retained as local/export artifacts:
 - Full deletion of Supabase/Superwall/billing backend code remains a later pass; Pass 09 only updated user-facing copy and added local status surfaces.
 - `scripts/release/` contents were not modified.
 - No push performed.
+
+
+## Pass 10 — E2E Test Matrix and Regression Coverage
+
+### Pass Scope And Evidence
+
+Pass executed: Pass 10 only, test matrix and regression coverage.
+
+Runtime behavior changed:
+
+- Removed dead billing-route methods `openPlansAndPacks()` and `isBillingUpgradeMessage(_:)` from `ChatInputView` and `ChatPanelView`.
+- Changed `Config.supabaseURL` and `Config.supabaseAnonKey` defaults from placeholder values to empty strings.
+- Fixed `MessageRepository.addMessage(_:projectId:)` so `project_id` is stored separately from `conversation_id`; generation history now persists correctly across reloads.
+- Added `LocalProjectStore.testBaseDirectoryOverride` so integration tests can exercise local export against a temporary directory without touching the real app support folder.
+
+Files created:
+
+- `scripts/forbidden-audit`
+- `10x-macosTests/NoSuperwallRuntimeTests.swift`
+- `10x-macosTests/GenerationHistoryPersistenceTests.swift`
+- `10x-macosTests/LocalExportIntegrationTests.swift`
+- `10x-macosTests/FirstLaunchIntegrationTests.swift`
+
+Files modified:
+
+- `10x-macos/Config.swift`
+- `10x-macos/Services/DB/Repositories/MessageRepository.swift`
+- `10x-macos/Services/LocalProjectStore.swift`
+- `10x-macos/Services/SupabaseService.swift`
+- `10x-macos/Views/Chat/ChatInputView.swift`
+- `10x-macos/Views/Chat/ChatPanelView.swift`
+- `10x-macosTests/NoSupabaseRuntimeTests.swift`
+
+### Inventory Findings
+
+Coverage gaps inventoried and filled:
+
+- No static test existed proving the runtime does not import Superwall or depend on a Superwall endpoint default. Added `NoSuperwallRuntimeTests`.
+- `NoSupabaseRuntimeTests` only asserted Supabase defaults were "inert" placeholders; strengthened to require empty defaults and added hosted-endpoint inertness checks.
+- No test proved generation history (versions + messages) survives a database reconnect. Added `GenerationHistoryPersistenceTests` and fixed the underlying `MessageRepository` bug.
+- No integration test proved local folder/zip export shape or export safety. Added `LocalExportIntegrationTests` covering folder export, zip creation, and provider-secret exclusion.
+- No end-to-end test covered first-launch local setup through mocked generation and reload. Added `FirstLaunchIntegrationTests`.
+- No runnable forbidden-string audit existed. Added `scripts/forbidden-audit` with active-runtime checks plus optional legacy-code inventory.
+
+Surfaces intentionally retained as local/export artifacts:
+
+- `SuperwallManagementService.swift`, `SupabaseManagementService.swift`, `SupabaseService.swift`, `BillingModels.swift`, `ProjectSuperwall.swift`, generated-app prompts, and App Store submission artifacts remain as legacy/local artifacts.
+- The audit script allowlists these files and reports them only under `--inventory`, not as active runtime violations.
+
+### Verification
+
+- `git diff --check` passed.
+- `xcodebuild -project 10x-macos.xcodeproj -scheme 10x-macos -configuration Debug -derivedDataPath .derivedData/10x-macos build CODE_SIGNING_ALLOWED=NO` passed and produced `.derivedData/10x-macos/Build/Products/Debug/11x.app`.
+- `xcrun swift test` passed: 220 tests, 0 failures.
+- `./scripts/forbidden-audit` passed: no active runtime violations.
+- `./scripts/forbidden-audit --inventory` reported 3 legacy-inventory warning categories (legacy monetization code, legacy Supabase code, legacy hosted deploy/updater code) in retained artifact files; these are expected and tracked for later passes.
+- GitNexus `detect_changes` reported 7 changed files / 12 symbols / high risk because `LocalProjectStore.baseDirectory` participates in many save/load execution flows. Risk is mitigated because the change only adds an optional test override; default behavior is unchanged and all existing tests pass.
+- Pass-specific tests added and passing:
+  - `NoSuperwallRuntimeTests`: no runtime Superwall imports, no Superwall package dependency, local entitlements block Superwall behavior, no paywall settings route, no Superwall endpoint default.
+  - `NoSupabaseRuntimeTests`: app boots without Supabase env vars, no runtime Supabase imports, no Supabase package dependency, Supabase defaults empty, hosted endpoints empty.
+  - `GenerationHistoryPersistenceTests`: version history persists after reload, current version id updates, message history persists after reload, generation history survives database recreation.
+  - `LocalExportIntegrationTests`: folder export contains project files and is not billing gated, zip export can be created from project folder, export excludes provider secrets.
+  - `FirstLaunchIntegrationTests`: first-launch local setup flow covering no Supabase/Superwall config, local profile without remote login, provider configuration with custom base URL, first project creation, mocked generation, generation history persistence, and reload verification.
+
+### Remaining Notes
+
+- Full deletion of Supabase/Superwall/billing backend code remains a later pass; Pass 10 only added audits, tests, and minimal cleanup required for those tests to be meaningful.
+- `scripts/release/` contents were not modified.
+- No push performed.

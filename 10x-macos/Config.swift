@@ -80,15 +80,17 @@ enum Config {
     }
 
     static var supabaseURL: String {
+        // 11x local cockpit: Supabase is removed; no default URL.
         ProcessInfo.processInfo.environment["SUPABASE_URL"]
             ?? Bundle.main.infoDictionary?["SUPABASE_URL"] as? String
-            ?? "https://your-project-ref.supabase.co"
+            ?? ""
     }
 
     static var supabaseAnonKey: String {
+        // 11x local cockpit: Supabase is removed; no default anon key.
         ProcessInfo.processInfo.environment["SUPABASE_ANON_KEY"]
             ?? Bundle.main.infoDictionary?["SUPABASE_ANON_KEY"] as? String
-            ?? "sb_publishable_your_key"
+            ?? ""
     }
 
 

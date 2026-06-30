@@ -936,15 +936,6 @@ struct ChatInputView: View {
         )
     }
 
-    private func openPlansAndPacks() {
-        // Billing catalog is disabled in 11x local cockpit
-    }
-
-    private static func isBillingUpgradeMessage(_ message: String) -> Bool {
-        let normalized = message.lowercased()
-        return false
-    }
-
     private static func recognizedInlineSkillNames(
         in text: String,
         availableSkillNames: Set<String>

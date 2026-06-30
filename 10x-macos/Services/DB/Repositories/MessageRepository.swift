@@ -22,11 +22,11 @@ actor MessageRepository {
         return rows.compactMap(Self.message(from:))
     }
 
-    func addMessage(_ message: BuilderMessage) async throws {
+    func addMessage(_ message: BuilderMessage, projectId: String) async throws {
         let sql = """
         INSERT INTO messages (id, project_id, conversation_id, role, content, version_id, created_at)
         VALUES (\(CockpitDatabase.escaped(message.id)),
-                \(CockpitDatabase.escaped(message.conversationId)),
+                \(CockpitDatabase.escaped(projectId)),
                 \(CockpitDatabase.escaped(message.conversationId)),
                 \(CockpitDatabase.escaped(message.role)),
                 \(CockpitDatabase.escaped(message.content)),
@@ -37,7 +37,6 @@ actor MessageRepository {
             content = excluded.content,
             version_id = excluded.version_id;
         """
-        // Note: project_id stored as conversation_id in this shim; real schema will separate project_id.
         try await db.execute(sql)
     }
 
