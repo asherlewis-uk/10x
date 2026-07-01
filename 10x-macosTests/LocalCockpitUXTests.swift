@@ -266,6 +266,40 @@ final class LocalCockpitUXTests: XCTestCase {
         )
     }
 
+
+
+    // MARK: - Error and empty state copy
+
+    func testErrorAndEmptyStatesAvoidBannedPhrases() {
+        let sources = [
+            "10x-macos/Views/HomeView.swift",
+            "10x-macos/Views/Settings/ProviderSettingsView.swift",
+            "10x-macos/Views/Preview/BackendView.swift",
+            "10x-macos/Views/Chat/ChatPanelView.swift",
+            "10x-macos/Views/Onboarding/OnboardingView.swift",
+            "10x-macos/Views/Auth/LoginView.swift",
+        ]
+        let banned = ["sign in before", "sign out", "account required", "billing disabled", "hosted deploy disabled", "app store submission"]
+        for path in sources {
+            let source = try! String(contentsOfFile: path).lowercased()
+            for word in banned {
+                XCTAssertFalse(
+                    source.contains(word),
+                    "\(path) must not contain banned phrase: \"\(word)\""
+                )
+            }
+        }
+    }
+
+    func testProviderSetupErrorPointsToSettingsProvider() {
+        let source = try! String(contentsOfFile: "10x-macos/Views/Chat/ChatPanelView.swift")
+        let lower = source.lowercased()
+        XCTAssertTrue(
+            lower.contains("settings") && lower.contains("provider"),
+            "Chat error state should direct users to Settings > Provider when provider is misconfigured"
+        )
+    }
+
     func testProjectStatePersistsAfterReload() async throws {
         let projects = ProjectRepository(database: database)
         let profile = try await ProfileRepository(database: database).loadOrCreateProfile()

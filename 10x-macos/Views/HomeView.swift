@@ -1000,7 +1000,7 @@ struct HomeView: View {
             guard let token = await auth.validAccessToken() else {
                 await MainActor.run {
                     isImportingProject = false
-                    promptComposerError = "Local profile is not ready. Check Settings > General."
+                    promptComposerError = "Local session not ready. Restart 11x or check Settings > General."
                 }
                 return
             }

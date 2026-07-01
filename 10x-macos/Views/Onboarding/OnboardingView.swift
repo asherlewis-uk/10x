@@ -229,8 +229,8 @@ struct OnboardingView: View {
                 )
                 localCockpitBullet(
                     icon: "creditcard.fill",
-                    title: "No billing or credits",
-                    detail: "Generation and export are unlimited. There are no paywalls, subscriptions, or credit packs."
+                    title: "Unlimited local generation",
+                    detail: "Generate and export as much as you want. No credits, paywalls, or subscriptions."
                 )
                 localCockpitBullet(
                     icon: "internaldrive.fill",
@@ -319,7 +319,7 @@ struct OnboardingView: View {
         ),
         AppDesignStyle(
             id: "professional", name: "Professional", vibe: "Refined cards, layered depth, cool tones",
-            icon: "briefcase", apps: ["Stripe", "Vercel", "Mercury"],
+            icon: "doc.text", apps: ["Notion", "Linear", "Figma"],
             primary: "#0A2540", secondary: "#425466", accent: "#635BFF", background: "#FFFFFF", surface: "#F6F9FC",
             fontStyle: "SF Pro", cornerRadius: "Medium (8pt)", spacing: "Balanced", shadows: "Layered"
         ),

@@ -822,6 +822,8 @@ struct ChatPanelView: View {
 
     private func errorView(message: String) -> some View {
         let isConnectionIssue = BuilderGenerationRequestPlanner.isConnectionFailureMessage(message)
+        let lower = message.lowercased()
+        let isProviderIssue = lower.contains("provider") || lower.contains("api key") || lower.contains("apikey")
 
         return HStack(spacing: Theme.spacingSM) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -829,7 +831,7 @@ struct ChatPanelView: View {
                 .font(.caption)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(isConnectionIssue ? "Connection issue" : "Request failed")
+                Text(isConnectionIssue ? "Connection issue" : "Generation failed")
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(Theme.error)
@@ -838,6 +840,13 @@ struct ChatPanelView: View {
                     .font(.caption)
                     .foregroundStyle(Theme.error.opacity(0.9))
                     .lineLimit(3)
+
+                if isProviderIssue {
+                    Text("Check Settings > Provider")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Theme.accent)
+                }
             }
 
             Spacer()
