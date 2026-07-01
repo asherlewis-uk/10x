@@ -183,6 +183,48 @@ final class LocalCockpitUXTests: XCTestCase {
         XCTAssertEqual(loaded?.name, "First Local Project")
     }
 
+
+
+    // MARK: - Builder / Review reframe
+
+    func testChatViewsDoNotContainBillingLanguage() {
+        let panelSource = try! String(contentsOfFile: "10x-macos/Views/Chat/ChatPanelView.swift")
+        let inputSource = try! String(contentsOfFile: "10x-macos/Views/Chat/ChatInputView.swift")
+        let combined = (panelSource + inputSource).lowercased()
+        let banned = ["billing", "credits", "paywall", "upgrade", "subscribe", "purchase", "checkout", "plans & packs"]
+        for word in banned {
+            XCTAssertFalse(
+                combined.contains(word),
+                "Chat views must not contain billing vocabulary: \"\(word)\""
+            )
+        }
+    }
+
+    func testReviewViewUsesLocalExportLanguage() {
+        let source = try! String(contentsOfFile: "10x-macos/Views/Preview/ReviewView.swift")
+        let lower = source.lowercased()
+        XCTAssertFalse(
+            lower.contains("app store submission generation is not available"),
+            "ReviewView should not repeat disabled-SaaS framing"
+        )
+        XCTAssertFalse(
+            lower.contains("hosted publishing is not available"),
+            "ReviewView should not use disabled-SaaS language"
+        )
+        XCTAssertFalse(
+            lower.contains("marketing assets"),
+            "ReviewView should refer to review assets, not marketing assets"
+        )
+        XCTAssertTrue(
+            lower.contains("export locally") || lower.contains("export the packet") || lower.contains("your own workflow") || lower.contains("release pipeline"),
+            "ReviewView should surface local export language"
+        )
+        XCTAssertTrue(
+            lower.contains("exportappsubmissionpacket") || lower.contains("export submission packet") || lower.contains("export packet"),
+            "ReviewView should expose export submission packet action"
+        )
+    }
+
     func testProjectStatePersistsAfterReload() async throws {
         let projects = ProjectRepository(database: database)
         let profile = try await ProfileRepository(database: database).loadOrCreateProfile()

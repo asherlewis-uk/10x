@@ -189,7 +189,7 @@ struct ReviewView: View {
     }
 
     private var publishStatusTitle: String {
-        editableDraft.publish.isPublished ? "Published" : "Draft"
+        editableDraft.publish.isPublished ? "Exported" : "Draft"
     }
 
     private var publishStatusTint: Color {
@@ -225,8 +225,8 @@ struct ReviewView: View {
                 assetsSection
             } else {
                 CenteredGenerationState(
-                    title: "No marketing assets yet",
-                    detail: "Marketing asset generation is not available in 11x. Use local export for any assets you create manually.",
+                    title: "No review assets yet",
+                    detail: "Review assets are managed locally. Add or edit them here, then export your submission packet.",
                     primaryTitle: "Generate Unavailable",
                     secondaryTitle: "Learn More",
                     primaryAction: {},
@@ -247,7 +247,7 @@ struct ReviewView: View {
             } else {
                 CenteredGenerationState(
                     title: "No legal drafts yet",
-                    detail: "App Store submission generation is not available in 11x. Edit drafts manually or export locally.",
+                    detail: "Review assets are managed locally. Edit drafts and export the packet from your own workflow.",
                     primaryTitle: "Generate Unavailable",
                     secondaryTitle: "Learn More",
                     primaryAction: {},
@@ -533,7 +533,7 @@ struct ReviewView: View {
                 )
             }
 
-            Text("App Store submission generation is not available in 11x. Edit drafts manually or export locally.")
+            Text("Review assets are managed locally. Edit drafts and export the packet from your own workflow.")
                 .font(Theme.geist(12))
                 .foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -555,7 +555,7 @@ struct ReviewView: View {
                 .menuStyle(.borderlessButton)
                 .fixedSize()
 
-                Text("Hosted publishing is not available in 11x. Use local export instead.")
+                Text("Hosted publishing is replaced by local export. Export the packet to your own release pipeline.")
                     .font(Theme.geist(12))
                     .foregroundStyle(Theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -567,7 +567,7 @@ struct ReviewView: View {
 
     private var compactLegalFactsPanel: some View {
         VStack(alignment: .leading, spacing: Theme.spacingMD) {
-            panelHeading("Public Facts", detail: "Optional metadata for local App Store submission notes.")
+            panelHeading("Public Facts", detail: "Optional metadata for your local export packet.")
 
             LabeledField("Company Name", text: $editableDraft.facts.companyName)
             LabeledField("Support Email", text: $editableDraft.facts.supportEmail)
@@ -575,7 +575,7 @@ struct ReviewView: View {
             LabeledField(
                 "Public Slug",
                 text: $editableDraft.publish.publicSlug,
-                helper: isSlugLocked ? "Locked after first publish." : "Not used for hosted pages in 11x local cockpit.",
+                helper: isSlugLocked ? "Locked after first export." : "Local-only identifier for your export packet.",
                 disabled: isSlugLocked
             )
         }
@@ -584,7 +584,7 @@ struct ReviewView: View {
 
     private var compactLegalChecksPanel: some View {
         VStack(alignment: .leading, spacing: Theme.spacingMD) {
-            panelHeading("Checks", detail: "Minimal inputs that affect policy accuracy and publish readiness.")
+            panelHeading("Checks", detail: "Minimal inputs that affect policy accuracy and export readiness.")
 
             CompactToggleRow(title: "Accounts", detail: "Users sign in or keep an account.", isOn: $editableDraft.facts.usesAccounts)
             CompactToggleRow(title: "Subscriptions", detail: "The app sells paid access.", isOn: $editableDraft.facts.usesSubscriptions)
@@ -605,7 +605,7 @@ struct ReviewView: View {
         VStack(alignment: .leading, spacing: Theme.spacingSM) {
             panelHeading("Hosted Pages", detail: "Not available in 11x local cockpit.")
 
-            Text("Hosted publishing is not available in 11x. Use local export instead.")
+            Text("Hosted publishing is replaced by local export. Export the packet to your own release pipeline.")
                 .font(Theme.geist(12))
                 .foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -627,7 +627,7 @@ struct ReviewView: View {
         VStack(alignment: .leading, spacing: Theme.spacingMD) {
             panelHeading("Hosted Pages", detail: "Not available in 11x local cockpit.")
 
-            Text("Hosted publishing is not available in 11x. Use local export instead.")
+            Text("Hosted publishing is replaced by local export. Export the packet to your own release pipeline.")
                 .font(Theme.geist(12))
                 .foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -905,7 +905,7 @@ struct ReviewView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
 
-                Text("App Store submission generation is not available in 11x. Edit drafts manually or export locally.")
+                Text("Review assets are managed locally. Edit drafts and export the packet from your own workflow.")
                     .font(Theme.geist(12))
                     .foregroundStyle(Theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -949,7 +949,7 @@ struct ReviewView: View {
                 }
 
                 HStack(spacing: Theme.spacingSM) {
-                    Text("App Store submission generation is not available in 11x. Edit drafts manually or export locally.")
+                    Text("Review assets are managed locally. Edit drafts and export the packet from your own workflow.")
                         .font(Theme.geist(12))
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -961,7 +961,7 @@ struct ReviewView: View {
     private var minimalLegalStatusPanel: some View {
         VStack(alignment: .leading, spacing: Theme.spacingSM) {
             if !publishBlockers.isEmpty {
-                Text("Needs review before publish")
+                Text("Needs review before export")
                     .font(Theme.geist(12, weight: .semibold))
                     .foregroundStyle(Theme.error)
 
@@ -1009,21 +1009,21 @@ struct ReviewView: View {
             MetricTile(title: "Docs Ready", value: "\(generatedDocumentCount)", detail: "/ 3", tint: generatedDocumentCount == 3 ? Theme.accent : Theme.warning)
             MetricTile(title: "Confirmed", value: "\(confirmedFieldCount)", detail: "checks", tint: Theme.textPrimary)
             MetricTile(title: "Blockers", value: "\(publishBlockers.count)", detail: publishBlockers.isEmpty ? "clear" : "open", tint: publishBlockers.isEmpty ? Theme.accent : Theme.error)
-            MetricTile(title: "Slug", value: editableDraft.publish.publicSlug.isEmpty ? "unset" : editableDraft.publish.publicSlug, detail: editableDraft.publish.isPublished ? "live" : "draft", tint: Theme.textPrimary)
+            MetricTile(title: "Slug", value: editableDraft.publish.publicSlug.isEmpty ? "unset" : editableDraft.publish.publicSlug, detail: editableDraft.publish.isPublished ? "exported" : "draft", tint: Theme.textPrimary)
         }
     }
 
     private var legalReadinessPanel: some View {
         VStack(alignment: .leading, spacing: Theme.spacingMD) {
             panelHeading(
-                "Publish Readiness",
+                "Export Readiness",
                 detail: publishBlockers.isEmpty
                     ? "Drafts look complete for local export."
                     : "These items still need confirmation before the drafts are ready for local export."
             )
 
             if publishBlockers.isEmpty {
-                Text("No publish blockers.")
+                Text("No export blockers.")
                     .font(Theme.geist(12, weight: .semibold))
                     .foregroundStyle(Theme.accent)
             } else {
@@ -1104,7 +1104,7 @@ struct ReviewView: View {
 
     private var linkReferencePanel: some View {
         VStack(alignment: .leading, spacing: Theme.spacingMD) {
-            panelHeading("Reference Links", detail: "Optional metadata for your own App Store submission workflow.")
+            panelHeading("Reference Links", detail: "Optional metadata for your own release workflow.")
 
             referenceRow(title: "Support Email", value: editableDraft.facts.supportEmail)
             referenceRow(title: "Website URL", value: editableDraft.facts.websiteURL)
@@ -1187,15 +1187,15 @@ struct ReviewView: View {
     }
 
     private func triggerLegalGeneration() {
-        viewModel.appStoreSubmissionError = "App Store submission generation is not available in 11x. Use local export instead."
+        viewModel.appStoreSubmissionError = "Review asset generation is local only. Export the packet to your own workflow."
     }
 
     private func publishCurrentDraft() {
-        viewModel.appStoreSubmissionError = "Hosted publishing is not available in 11x. Use local export instead."
+        viewModel.appStoreSubmissionError = "Hosted publishing is replaced by local export. Export the packet to your own release pipeline."
     }
 
     private func unpublishCurrentDraft() {
-        viewModel.appStoreSubmissionError = "Hosted publishing is not available in 11x. Use local export instead."
+        viewModel.appStoreSubmissionError = "Hosted publishing is replaced by local export. Export the packet to your own release pipeline."
     }
 
     private func exportSubmissionPacket() {
@@ -1408,7 +1408,7 @@ private struct AppStoreFactsForm: View {
             LabeledField(
                 "Public Slug",
                 text: $draft.publish.publicSlug,
-                helper: isSlugLocked ? "Locked after first publish." : "Not used for hosted pages in 11x local cockpit.",
+                helper: isSlugLocked ? "Locked after first export." : "Local-only identifier for your export packet.",
                 disabled: isSlugLocked
             )
         }

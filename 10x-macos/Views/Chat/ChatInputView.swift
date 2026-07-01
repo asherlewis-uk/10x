@@ -739,7 +739,7 @@ struct ChatInputView: View {
         if let composerError, !composerError.isEmpty {
             return
         }
-        // Credits are unlimited in 11x local cockpit — no gating
+        // Generation is unlimited in the 11x local cockpit
         if let validationError {
             composerError = validationError
             return
