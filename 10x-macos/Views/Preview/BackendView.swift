@@ -75,9 +75,9 @@ struct BackendView: View {
             return "Needs attention"
         }
         if backendState.isConfigured {
-            return "Connected"
+            return "Linked locally"
         }
-        return "Ready to connect"
+        return "Local only"
     }
 
     private var backendStatusTone: Color {
@@ -92,12 +92,12 @@ struct BackendView: View {
 
     private var backendStatusSummary: String {
         if backendState.isConfigured, let projectRef = backendState.linkedProjectRef {
-            return "Supabase project `\(projectRef)` is linked and available for Backend work."
+            return "A legacy Supabase project reference (`\(projectRef)`) is recorded locally for export only."
         }
         if canUseConnectedSupabase {
-            return "A Supabase project is already connected in Integrations. Link it here to manage functions and secrets."
+            return "A Supabase project reference exists in environment variables. It is preserved for export only and cannot be managed in 11x."
         }
-        return "Connect Supabase in Integrations, then link Backend so functions, secrets, and logs stay in one place."
+        return "11x does not manage hosted backends. Use local export to move your project to your own infrastructure."
     }
 
     private var localModeBanner: some View {
@@ -145,7 +145,7 @@ struct BackendView: View {
                 BackendSetupWarning(
                     id: "backend-link",
                     title: "Backend isn’t linked",
-                    detail: "Connect Supabase in Integrations, then link Backend to the current project.",
+                    detail: "Hosted backend linking is not available. Export locally and connect your own backend.",
                     primaryActionTitle: canUseConnectedSupabase ? "Link Backend" : "Open Integrations"
                 ) {
                     if canUseConnectedSupabase {
@@ -873,7 +873,7 @@ struct BackendView: View {
     private func linkConnectedSupabaseProject() {
         guard let projectRef = runtimeSupabaseProjectRef,
               let projectURL = runtimeSupabaseURL else {
-            statusMessage = "Connect Supabase in Integrations first."
+            statusMessage = "Hosted backend setup is not available. Use local export for your own backend."
             return
         }
 
@@ -913,7 +913,7 @@ struct BackendView: View {
     private func triggerFix(for failure: ProjectBackendFailureRecord) {
         Task {
             guard let accessToken = await auth.validAccessToken() else {
-                statusMessage = "Sign in again to run a backend repair."
+                statusMessage = "Backend repair requires a local profile. Restart 11x if the local session was reset."
                 return
             }
             viewModel.fixBackendFailure(failure, accessToken: accessToken)

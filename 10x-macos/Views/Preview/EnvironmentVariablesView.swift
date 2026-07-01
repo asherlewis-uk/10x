@@ -3817,9 +3817,9 @@ struct EnvironmentVariablesView: View {
     ) -> String {
         switch error {
         case SupabaseManagementOAuthError.missingAppSession, APIError.unauthorized:
-            return "Sign in to 10x again, then reconnect Supabase."
+            return "Supabase management is not available in 11x. Local export is the supported path."
         case SupabaseManagementOAuthError.expiredSession:
-            return "Your Supabase connection expired. Reconnect Supabase and try again."
+            return "Supabase management is not available in 11x. Local export is the supported path."
         case SupabaseManagementOAuthError.oauthFailed(let message):
             let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? "\(context.failurePrefix) Try again." : "\(context.failurePrefix) \(trimmed)"
@@ -3827,7 +3827,7 @@ struct EnvironmentVariablesView: View {
              SupabaseManagementOAuthError.callbackMissing,
              SupabaseManagementOAuthError.codeMissing,
              SupabaseManagementOAuthError.stateMismatch:
-            return "Supabase sign-in did not finish cleanly. Try connecting again."
+            return "Supabase management is not available in 11x. Local export is the supported path."
         case SupabaseManagementServiceError.missingAccessToken:
             return "Reconnect Supabase to keep using your projects."
         case SupabaseManagementServiceError.invalidInput(let detail):

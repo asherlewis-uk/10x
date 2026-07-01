@@ -225,6 +225,47 @@ final class LocalCockpitUXTests: XCTestCase {
         )
     }
 
+
+
+    // MARK: - Diagnostics / backend reframe
+
+    func testDiagnosticsSectionExistsAndUsageVocabularyIsGone() {
+        let rawValues = Set(SettingsSection.allCases.map(\.rawValue))
+        XCTAssertTrue(rawValues.contains("Diagnostics"), "Diagnostics section must exist")
+        XCTAssertFalse(rawValues.contains("Usage"), "Usage section must be renamed to Diagnostics")
+        XCTAssertFalse(rawValues.contains("Billing"), "Billing section must not exist")
+    }
+
+    func testBackendViewUsesLocalModeLanguage() {
+        let source = try! String(contentsOfFile: "10x-macos/Views/Preview/BackendView.swift")
+        let lower = source.lowercased()
+        XCTAssertFalse(
+            lower.contains("sign in again to run a backend repair"),
+            "BackendView must not use remote-auth repair language"
+        )
+        XCTAssertTrue(
+            lower.contains("local cockpit") || lower.contains("local only"),
+            "BackendView should reflect local-only mode"
+        )
+        XCTAssertTrue(
+            lower.contains("local export") || lower.contains("local mode banner"),
+            "BackendView should point to local export"
+        )
+    }
+
+    func testEnvironmentVariablesViewDoesNotPromptRemoteAuth() {
+        let source = try! String(contentsOfFile: "10x-macos/Views/Preview/EnvironmentVariablesView.swift")
+        let lower = source.lowercased()
+        XCTAssertFalse(
+            lower.contains("sign in to 10x again"),
+            "EnvironmentVariablesView must not prompt remote sign-in"
+        )
+        XCTAssertTrue(
+            lower.contains("supabase management is not available in 11x") || lower.contains("local export is the supported path"),
+            "EnvironmentVariablesView should state local-only path"
+        )
+    }
+
     func testProjectStatePersistsAfterReload() async throws {
         let projects = ProjectRepository(database: database)
         let profile = try await ProfileRepository(database: database).loadOrCreateProfile()
