@@ -33,7 +33,7 @@ struct DiagnosticsSettingsView: View {
                 LocalModeNote(
                     icon: "checkmark.shield",
                     title: "Forbidden-runtime audit passed",
-                    detail: "No active Supabase, Superwall, billing, or hosted-deploy runtime dependency was found. Run ./scripts/forbidden-audit to recheck."
+                    detail: "No active runtime dependency on vendor auth, billing, or hosted backend was found. Run ./scripts/forbidden-audit to recheck."
                 )
             }
         }
