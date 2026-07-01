@@ -43,6 +43,36 @@ final class LocalCockpitUXTests: XCTestCase {
         // is sufficient evidence it was removed.
     }
 
+
+
+    // MARK: - Home branding
+
+    func testHomeDoesNotUse10xBranding() {
+        let source = try! String(contentsOfFile: "10x-macos/Views/HomeView.swift")
+        XCTAssertFalse(source.contains("10XbuilderLogo"), "HomeView must not reference the 10XbuilderLogo asset")
+    }
+
+    func testHomeSamplePromptsExcludeBillingVocabulary() {
+        let source = try! String(contentsOfFile: "10x-macos/Views/HomeView.swift")
+        let lower = source.lowercased()
+        let banned = ["subscription", "billing", "credits", "paywall", "upgrade", "checkout"]
+        for word in banned {
+            XCTAssertFalse(
+                lower.contains(word),
+                "Home sample prompts must not include billing vocabulary: \"(word)\""
+            )
+        }
+    }
+
+    func testHomeEmptyStateInvitesBuilding() {
+        let source = try! String(contentsOfFile: "10x-macos/Views/HomeView.swift")
+        let lower = source.lowercased()
+        XCTAssertTrue(
+            lower.contains("no projects yet") || lower.contains("start building"),
+            "Home empty state should invite the user to start building"
+        )
+    }
+
     func testLocalEntitlementsDisableMonetization() {
         XCTAssertFalse(LocalEntitlements.billingEnabled)
         XCTAssertFalse(LocalEntitlements.creditsEnabled)

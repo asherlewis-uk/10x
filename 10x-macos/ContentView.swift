@@ -297,11 +297,7 @@ struct ContentView: View {
         return Button {
             activeTabId = nil
         } label: {
-            Image("10XbuilderLogo")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 20, height: 16)
+            AppIconMark(size: 20)
                 .foregroundStyle(isActive ? TabBarPalette.accent : TabBarPalette.homeIcon)
                 .frame(width: 26, height: 22)
                 .padding(.horizontal, 11)

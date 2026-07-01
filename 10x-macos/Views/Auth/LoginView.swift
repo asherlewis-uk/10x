@@ -98,10 +98,7 @@ struct LoginView: View {
     }
 
     private var animatedLogo: some View {
-        Image("10XbuilderLogo")
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(height: 64)
+        AppIconMark(size: 64, isFilled: true)
             .opacity(fadeIn ? 1 : 0)
             .scaleEffect(fadeIn ? 1 : 0.92)
             .frame(height: 120)

@@ -65,7 +65,7 @@ struct HomeView: View {
         "Meal prep planner",
         // Finance
         "Expense splitter for friend groups",
-        "Subscription cost tracker",
+        "Meditation sound mixer",
         "Side hustle income dashboard",
         "Savings goal visualizer",
         "Freelancer invoice maker",
@@ -142,14 +142,15 @@ struct HomeView: View {
                     Spacer(minLength: 40)
 
                     // Hero
-                    Image("10XbuilderLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 84, height: 70)
-                        .foregroundStyle(Theme.textPrimary)
+                    AppIconMark(size: 72, isFilled: true)
 
-                    Text("What would you like to build?")
-                        .font(Theme.geist(22, weight: .semibold))
+                    VStack(spacing: 6) {
+                        Text("Build an iOS app locally")
+                            .font(Theme.geist(22, weight: .semibold))
+                        Text("Unlimited local generation · Saved on this Mac")
+                            .font(Theme.geist(13))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
 
                     // Input area
                     VStack(spacing: Theme.spacingXS) {
@@ -526,7 +527,7 @@ struct HomeView: View {
                         .font(Theme.geist(14, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
 
-                    Text("11x is an unlimited single-user local cockpit. Start a new project to begin building.")
+                    Text("No projects yet. Describe an app idea above to start building.")
                         .font(Theme.geist(12))
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
