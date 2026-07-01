@@ -63,7 +63,13 @@ Current source still contains 10x-era identity, Supabase, Superwall, Sparkle/upd
 
 ## Useful Commands
 
-Build the macOS app without signing:
+Build lanes (do not confuse them):
+
+- Lane 1 — fast unsigned verification: `./scripts/build-lanes/verify-unsigned.sh`
+- Lane 2 — signed local Release build: `./scripts/build-lanes/build-signed-release.sh`
+- Lane 3 — notarized Developer ID release: `./scripts/release/build-notarized-11x.sh`
+
+Fast unsigned verification command (Lane 1):
 
 ```bash
 xcodebuild -project 10x-macos.xcodeproj -scheme 10x-macos -configuration Debug -derivedDataPath .derivedData/10x-macos build CODE_SIGNING_ALLOWED=NO

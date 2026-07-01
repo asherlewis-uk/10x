@@ -203,7 +203,23 @@ Expected local build environment:
 - Xcode project: `10x-macos.xcodeproj`.
 - Scheme: `10x-macos`.
 
-The validated no-signing app build uses `CODE_SIGNING_ALLOWED=NO` and outputs `11x.app`.
+The validated no-signing app build (Lane 1) uses `CODE_SIGNING_ALLOWED=NO` and outputs `11x.app`.
+
+Signed Release builds (Lane 2) and notarized release builds (Lane 3) require the
+`Developer ID Application: Kasey Upton (S58MT4ATKM)` certificate and the `11x-notary`
+keychain profile (Lane 3 only). See `BUILD_LANES.md`.
+
+## Build Lanes
+
+11x has three distinct build lanes. Do not confuse them.
+
+| Lane | Script | Purpose |
+|------|--------|---------|
+| 1 — Fast unsigned verification | `./scripts/build-lanes/verify-unsigned.sh` | CI/dev sanity; fastest compile check; no distribution |
+| 2 — Signed local Release build | `./scripts/build-lanes/build-signed-release.sh` | Hardened-runtime signed Release app for local testing or pre-notarization input |
+| 3 — Notarized Developer ID release | `./scripts/release/build-notarized-11x.sh` | Public Gatekeeper-approved release zip (authoritative release lane) |
+
+See `BUILD_LANES.md` for full lane definitions, expected outputs, and common mistakes.
 
 ## Build and Test Commands
 
@@ -213,14 +229,22 @@ Run SwiftPM tests:
 xcrun swift test
 ```
 
-Build the macOS app without signing:
+Fast unsigned verification build (Lane 1):
 
 ```bash
-xcodebuild -project 10x-macos.xcodeproj \
-  -scheme 10x-macos \
-  -configuration Debug \
-  -derivedDataPath .derivedData/10x-macos \
-  build CODE_SIGNING_ALLOWED=NO
+./scripts/build-lanes/verify-unsigned.sh
+```
+
+Signed local Release build (Lane 2):
+
+```bash
+./scripts/build-lanes/build-signed-release.sh
+```
+
+Notarized Developer ID release build (Lane 3):
+
+```bash
+./scripts/release/build-notarized-11x.sh
 ```
 
 Run the default forbidden runtime audit:
@@ -235,25 +259,12 @@ Print legacy cleanup inventory:
 ./scripts/forbidden-audit --inventory
 ```
 
-Unsigned debug builds are expected to fail strict signing and Gatekeeper verification commands such as:
-
-```bash
-codesign --verify --deep --strict .derivedData/10x-macos/Build/Products/Debug/11x.app
-spctl -a -vvv -t execute .derivedData/10x-macos/Build/Products/Debug/11x.app
-```
-
-That is expected when the build was produced with `CODE_SIGNING_ALLOWED=NO`.
-
 ## Running the App Locally
 
-Build first:
+Build first (Lane 1 — unsigned verification):
 
 ```bash
-xcodebuild -project 10x-macos.xcodeproj \
-  -scheme 10x-macos \
-  -configuration Debug \
-  -derivedDataPath .derivedData/10x-macos \
-  build CODE_SIGNING_ALLOWED=NO
+./scripts/build-lanes/verify-unsigned.sh
 ```
 
 Open the built app:
