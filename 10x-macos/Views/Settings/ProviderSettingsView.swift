@@ -95,20 +95,11 @@ struct ProviderSettingsView: View {
             }
 
             SettingsPanel("Local Cockpit") {
-                VStack(alignment: .leading, spacing: Theme.spacingSM) {
-                    localNote(
-                        icon: "lock.fill",
-                        text: "Provider secrets are stored in the system keychain and never exposed to the UI, exports, or a vendor backend."
-                    )
-                    localNote(
-                        icon: "network",
-                        text: "Base URL and model are saved locally in SQLite. 11x talks directly to your chosen OpenAI-compatible endpoint."
-                    )
-                    localNote(
-                        icon: "creditcard.fill",
-                        text: "No credits, billing, or subscription are required. Generation is unlimited and local."
-                    )
-                }
+                LocalModeNote(
+                    icon: "lock.fill",
+                    title: "Provider secrets stay in Keychain",
+                    detail: "API keys are stored in the system keychain and never exposed to the UI, exports, or a vendor backend."
+                )
             }
         }
         .task {
@@ -176,22 +167,6 @@ struct ProviderSettingsView: View {
             TextField(prompt, text: text)
                 .textFieldStyle(.roundedBorder)
                 .font(Theme.geistMono(12))
-        }
-    }
-
-    private func localNote(icon: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.accent)
-                .frame(width: 16, height: 16)
-
-            Text(text)
-                .font(Theme.geist(12))
-                .foregroundStyle(Theme.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer()
         }
     }
 

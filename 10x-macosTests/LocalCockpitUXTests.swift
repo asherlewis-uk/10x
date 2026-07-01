@@ -25,22 +25,27 @@ final class LocalCockpitUXTests: XCTestCase {
 
     // MARK: - Billing/credit/pricing UI absence
 
-    func testSettingsSectionsDoNotIncludeBilling() {
+    func testSettingsSectionsAre11xLocalCockpit() {
         let rawValues = Set(SettingsSection.allCases.map(\.rawValue))
-        XCTAssertTrue(rawValues.contains("General"))
-        XCTAssertTrue(rawValues.contains("Provider"))
-        XCTAssertTrue(rawValues.contains("Usage"))
+        XCTAssertTrue(rawValues.contains("General"), "General section must exist")
+        XCTAssertTrue(rawValues.contains("Provider"), "Provider section must exist")
+        XCTAssertTrue(rawValues.contains("Storage"), "Storage section must exist")
+        XCTAssertTrue(rawValues.contains("Diagnostics"), "Diagnostics section must exist")
+        XCTAssertTrue(rawValues.contains("About"), "About section must exist")
         XCTAssertFalse(rawValues.contains("Billing"), "Billing section must not exist in settings")
         XCTAssertFalse(rawValues.contains("Plans"), "Plans section must not exist in settings")
+        XCTAssertFalse(rawValues.contains("Account"), "Account section must not exist in settings")
+        XCTAssertFalse(rawValues.contains("Subscription"), "Subscription section must not exist in settings")
     }
 
-    func testAppTabDoesNotIncludeBilling() {
+    func testAppTabUsesSettingsNotAccount() {
         let projectTab = AppTab.project(name: "Test", projectId: "1")
-        let accountTab = AppTab.account()
+        let settingsTab = AppTab.settings()
         XCTAssertEqual(projectTab.kind, .project)
-        XCTAssertEqual(accountTab.kind, .account)
-        // A billing tab kind no longer exists in the source, so this compile-time check
-        // is sufficient evidence it was removed.
+        XCTAssertEqual(settingsTab.kind, .settings)
+        XCTAssertEqual(settingsTab.label, "Settings")
+        XCTAssertEqual(settingsTab.icon, "gearshape")
+        // Account/billing tab kinds no longer exist.
     }
 
 

@@ -3,7 +3,9 @@ import SwiftUI
 enum SettingsSection: String, CaseIterable, Identifiable {
     case general = "General"
     case provider = "Provider"
-    case usage = "Usage"
+    case storage = "Storage"
+    case diagnostics = "Diagnostics"
+    case about = "About"
 
     var id: String { rawValue }
 
@@ -11,7 +13,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .general: "gearshape"
         case .provider: "network"
-        case .usage: "chart.bar"
+        case .storage: "internaldrive"
+        case .diagnostics: "stethoscope"
+        case .about: "info.circle"
         }
     }
 }
@@ -98,8 +102,12 @@ struct SettingsView: View {
             GeneralSettingsView()
         case .provider:
             ProviderSettingsView()
-        case .usage:
-            UsageSettingsView()
+        case .storage:
+            StorageSettingsView()
+        case .diagnostics:
+            DiagnosticsSettingsView()
+        case .about:
+            AboutSettingsView()
         }
     }
 }

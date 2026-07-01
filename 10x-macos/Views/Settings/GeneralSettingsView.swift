@@ -10,7 +10,7 @@ struct GeneralSettingsView: View {
         SettingsPageContainer {
             SettingsPageHeader("Settings")
             cockpitCard
-            storageCard
+            readinessCard
             versionCard
         }
         .task {
@@ -23,14 +23,7 @@ struct GeneralSettingsView: View {
     private var cockpitCard: some View {
         SettingsPanel("Local Cockpit") {
             HStack(alignment: .center, spacing: Theme.spacingLG) {
-                ZStack {
-                    Circle()
-                        .fill(Theme.accent.opacity(0.12))
-                    Text("11")
-                        .font(Theme.geist(20, weight: .semibold))
-                        .foregroundStyle(Theme.accent)
-                }
-                .frame(width: 56, height: 56)
+                AppIconMark(size: 48, isFilled: true)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(AppIdentity.displayName)
@@ -51,40 +44,36 @@ struct GeneralSettingsView: View {
                 }
 
                 SettingsInsetRow {
-                    statusRow(label: "Billing", value: "Disabled")
+                    statusRow(label: "Workspace", value: "Saved on this Mac")
                 }
 
                 SettingsInsetRow {
-                    statusRow(label: "Hosted deploy", value: "Disabled")
+                    statusRow(
+                        label: "Provider",
+                        value: providerStatus.isEmpty ? "Loading..." : providerStatus,
+                        monospace: providerStatus.contains("/")
+                    )
                 }
             }
         }
     }
 
-    // MARK: - Storage Card
+    // MARK: - Readiness Card
 
-    private var storageCard: some View {
-        SettingsPanel("Storage") {
+    private var readinessCard: some View {
+        SettingsPanel("Generation Readiness") {
             VStack(spacing: Theme.spacingSM) {
-                SettingsInsetRow {
-                    statusRow(
-                        label: "Database",
-                        value: databasePath.isEmpty ? "Unavailable" : databasePath,
-                        monospace: true
-                    )
-                }
+                LocalModeNote(
+                    icon: "internaldrive.fill",
+                    title: "Local SQLite database",
+                    detail: databasePath
+                )
 
-                SettingsInsetRow {
-                    statusRow(
-                        label: "Assets",
-                        value: assetStoragePath.isEmpty ? "Unavailable" : assetStoragePath,
-                        monospace: true
-                    )
-                }
-
-                SettingsInsetRow {
-                    statusRow(label: "Provider", value: providerStatus)
-                }
+                LocalModeNote(
+                    icon: "folder.fill",
+                    title: "Local asset storage",
+                    detail: assetStoragePath
+                )
             }
         }
     }
@@ -138,7 +127,7 @@ struct GeneralSettingsView: View {
             if let config {
                 let ready = hasKey && !config.baseURL.isEmpty && !config.model.isEmpty
                 providerStatus = ready
-                    ? "\(config.model) via \(config.baseURL)"
+                    ? "\(config.model) configured"
                     : "Provider setup required"
             } else {
                 providerStatus = "Provider not configured"

@@ -179,7 +179,7 @@ struct ContentView: View {
                     .allowsHitTesting(isHome)
 
                 ForEach(tabs) { tab in
-                    if tab.kind == .account || tabViewModels[tab.id] != nil {
+                    if tab.kind == .settings || tabViewModels[tab.id] != nil {
                         tabContent(for: tab, vm: tabViewModels[tab.id])
                             .opacity(tab.id == activeTabId ? 1 : 0)
                             .allowsHitTesting(tab.id == activeTabId)
@@ -270,7 +270,7 @@ struct ContentView: View {
                 tabStrip
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                profileButton
+                settingsButton
             }
             .padding(.trailing, 16)
         }
@@ -317,7 +317,7 @@ struct ContentView: View {
         switch tab.kind {
         case .project:
             return AnyView(projectTab(tab, viewModel: viewModel))
-        case .account:
+        case .settings:
             return AnyView(utilityTab(tab))
         }
     }
@@ -410,13 +410,13 @@ struct ContentView: View {
         .buttonStyle(.plain)
     }
 
-    private var profileButton: some View {
-        let isActive = tabs.first(where: { $0.kind == .account })?.id == activeTabId && activeTabId != nil
+    private var settingsButton: some View {
+        let isActive = tabs.first(where: { $0.kind == .settings })?.id == activeTabId && activeTabId != nil
 
         return Button {
-            openAccountTab()
+            openSettingsTab()
         } label: {
-            Image(systemName: "person.crop.circle")
+            Image(systemName: "gearshape")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(isActive ? TabBarPalette.accent : TabBarPalette.homeIcon)
                 .frame(width: 20, height: 20)
@@ -437,7 +437,7 @@ struct ContentView: View {
                     BuilderView()
                         .environment(vm)
                 }
-            case .account:
+            case .settings:
                 SettingsView(selectedSection: $selectedSettingsSection)
             }
         }
@@ -501,16 +501,16 @@ struct ContentView: View {
         }
     }
 
-    private func openAccountTab(select section: SettingsSection? = nil) {
+    private func openSettingsTab(select section: SettingsSection? = nil) {
         if let section {
             selectedSettingsSection = section
         }
-        if let existing = tabs.first(where: { $0.kind == .account }) {
+        if let existing = tabs.first(where: { $0.kind == .settings }) {
             activeTabId = existing.id
             return
         }
 
-        let tab = AppTab.account()
+        let tab = AppTab.settings()
         tabs.append(tab)
         activeTabId = tab.id
     }
@@ -547,7 +547,7 @@ struct ContentView: View {
                 tabs.append(tab)
                 vm.selectProject(project, accessToken: accessToken)
                 preloadPreview(for: tab, project: project, viewModel: vm)
-            case .account:
+            case .settings:
                 tabs.append(tab)
             }
         }
@@ -563,7 +563,7 @@ struct ContentView: View {
                 return false
             }
             return lhsProjectId == rhsProjectId
-        case (.account, .account):
+        case (.settings, .settings):
             return true
         default:
             return false
