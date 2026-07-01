@@ -240,25 +240,32 @@ struct SettingsMetricTile: View {
     }
 }
 
+/// A small, calm status badge used in settings headers.
+/// Replaced the neutral text chip with a subtle accent capsule
+/// so status feels intentional without being loud.
 struct SettingsMetaChip: View {
     let text: String
 
     var body: some View {
         Text(text)
-            .font(Theme.geistMono(11, weight: .semibold))
-            .foregroundStyle(Theme.textTertiary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Theme.surface)
-            .clipShape(Capsule())
+            .font(Theme.geistMono(10, weight: .semibold))
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Theme.accent.opacity(0.08))
+            )
             .overlay(
                 Capsule()
-                    .stroke(Theme.separator, lineWidth: 1)
+                    .stroke(Theme.accent.opacity(0.16), lineWidth: 0.5)
             )
     }
 }
 
 extension View {
+    /// Settings card wrapper. Uses a slightly softer stroke to reduce visual weight
+    /// while keeping the inset grouped-panel look.
     func settingsPanelCard(background: Color = Theme.surfaceElevated, radius: CGFloat = Theme.radiusMD) -> some View {
         self
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -266,7 +273,7 @@ extension View {
             .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .stroke(Theme.separator, lineWidth: 1)
+                    .stroke(Theme.separator.opacity(0.5), lineWidth: 1)
             )
     }
 }

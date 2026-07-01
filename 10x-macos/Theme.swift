@@ -1,12 +1,15 @@
 import SwiftUI
 
-/// Design tokens for the 10x liquid glass theme.
+/// Design tokens for the 11x local cockpit.
 enum Theme {
     // MARK: - Colors
 
-    static let accent = Color(hex: "33B93E")
-    static let accentLight = Color(hex: "33B93E").opacity(0.12)
-    static let accentSubtle = Color(hex: "33B93E").opacity(0.06)
+    /// Calm green accent for the 11x local cockpit. Intentionally less saturated
+    /// than the original 10x token so status and actions feel quiet, not toy-bright.
+    static let accent = Color(hex: "2E9E3A")
+    static let accentSecondary = accent.opacity(0.72)
+    static let accentLight = accent.opacity(0.12)
+    static let accentSubtle = accent.opacity(0.06)
 
     static let surface = Color(hex: "1C1C1C")           // bg.primary
     static let surfaceElevated = Color(hex: "202220")     // bg.secondary
@@ -87,13 +90,14 @@ enum Theme {
     static let codeFontSmall = geistMono(12)
     static let lineHeight: CGFloat = 20
 
-    static func billingStatusTint(_ status: String) -> Color {
+    /// Generic status tint helper. Replaces the 10x-era `billingStatusTint`.
+    static func statusTint(_ status: String) -> Color {
         switch status.lowercased() {
-        case "active", "completed", "paid":
+        case "active", "completed", "paid", "configured", "ready", "ok", "success":
             accent
         case "trialing", "pending", "open", "running", "in_progress", "processing", "started", "streaming":
             .blue
-        case "cancelled", "failed":
+        case "cancelled", "failed", "error", "missing":
             warning
         case "past_due", "uncollectible":
             error

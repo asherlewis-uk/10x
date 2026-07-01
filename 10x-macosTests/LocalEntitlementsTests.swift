@@ -112,6 +112,6 @@ final class LocalEntitlementsTests: XCTestCase {
 
     func testAppIdentityBadgeReflectsUnlimitedLocal() {
         XCTAssertTrue(AppIdentity.localBadgeDetails.contains("Unlimited local"))
-        XCTAssertTrue(AppIdentity.localBadgeDetails.contains("No billing"))
+        XCTAssertTrue(AppIdentity.localBadgeDetails.contains("Local workspace"))
     }
 }

@@ -15,7 +15,7 @@ enum AppIdentity {
     nonisolated static let localBadgeDetails = [
         "Single-user cockpit",
         "Unlimited local",
-        "No billing",
+        "Local workspace",
     ]
 
     nonisolated static var appSupportDirectory: URL {

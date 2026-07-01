@@ -64,7 +64,7 @@ final class AppIdentityIsolationTests: XCTestCase {
         XCTAssertEqual(AppIdentity.localBadgeTitle, "11x")
         XCTAssertTrue(AppIdentity.localBadgeDetails.contains("Single-user cockpit"))
         XCTAssertTrue(AppIdentity.localBadgeDetails.contains("Unlimited local"))
-        XCTAssertTrue(AppIdentity.localBadgeDetails.contains("No billing"))
+        XCTAssertTrue(AppIdentity.localBadgeDetails.contains("Local workspace"))
         XCTAssertTrue(AppIdentity.localBadgeDetails.contains("Unlimited local"))
     }
 

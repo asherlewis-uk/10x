@@ -20,7 +20,7 @@ final class LocalCockpitUXTests: XCTestCase {
         let details = AppIdentity.localBadgeDetails
         XCTAssertTrue(details.contains("Single-user cockpit"), "Badge should mention single-user cockpit")
         XCTAssertTrue(details.contains("Unlimited local"), "Badge should mention unlimited local")
-        XCTAssertTrue(details.contains("No billing"), "Badge should mention no billing")
+        XCTAssertTrue(details.contains("Local workspace"), "Badge should mention local workspace")
     }
 
     // MARK: - Billing/credit/pricing UI absence
