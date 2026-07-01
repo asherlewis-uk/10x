@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# Lane 3 — Notarized Developer ID release build for 11x.
+# See BUILD_LANES.md for the full lane definitions and when to use each lane.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
