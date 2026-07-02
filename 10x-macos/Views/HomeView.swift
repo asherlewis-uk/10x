@@ -17,6 +17,7 @@ struct HomeView: View {
     @State private var thumbnailColors: [String: (Color, Color)] = [:]
     @State private var showOnboarding = false
     @State private var showPromptChoice = false
+    @State private var showLegacyImportSheet = false
     @State private var showingArchivedProjects = false
     @State private var pendingPrompt = ""
     @State private var pendingAttachments: [BuilderMessageAttachment] = []
@@ -256,6 +257,23 @@ struct HomeView: View {
                             .buttonStyle(.plain)
                             .disabled(isImportingProject)
 
+                            Button { showLegacyImportSheet = true } label: {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "arrow.down.circle")
+                                        .font(.system(size: 11))
+                                    Text("10x")
+                                        .font(.system(size: 10, weight: .medium))
+                                }
+                                .foregroundStyle(Theme.textTertiary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(
+                                    Capsule()
+                                        .stroke(Color(nsColor: .separatorColor).opacity(0.2), lineWidth: 0.5)
+                                )
+                            }
+                            .buttonStyle(.plain)
+
                             Spacer()
 
                             Button {
@@ -451,6 +469,9 @@ struct HomeView: View {
             }
         }
         .animation(.easeInOut(duration: 0.35), value: showOnboarding)
+        .sheet(isPresented: $showLegacyImportSheet) {
+            LegacyTenXImportSheet()
+        }
     }
 
     // MARK: - Project Card (iPhone Case Style)

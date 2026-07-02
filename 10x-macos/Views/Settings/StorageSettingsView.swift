@@ -6,6 +6,7 @@ struct StorageSettingsView: View {
     @State private var databasePath = ""
     @State private var assetStoragePath = ""
     @State private var exportPath = ""
+    @State private var showLegacyImportSheet = false
     @State private var copiedKey: String? = nil
 
     var body: some View {
@@ -41,6 +42,41 @@ struct StorageSettingsView: View {
                     )
                 }
             }
+
+            SettingsPanel("Legacy Projects") {
+                VStack(alignment: .leading, spacing: Theme.spacingSM) {
+                    Text("Import projects created by the original 10x app from ~/Library/Developer/TenXApp/. Imported projects are copied; the originals are not modified.")
+                        .font(Theme.geist(12))
+                        .foregroundStyle(Theme.textSecondary)
+
+                    Button {
+                        showLegacyImportSheet = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.down.circle")
+                                .font(.system(size: 12))
+                            Text("Import Legacy 10x Projects")
+                                .font(Theme.geist(12, weight: .semibold))
+                        }
+                        .foregroundStyle(Theme.textPrimary)
+                        .padding(.horizontal, Theme.spacingMD)
+                        .padding(.vertical, Theme.spacingSM)
+                        .background(
+                            RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous)
+                                .fill(Theme.surfaceElevated)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous)
+                                        .stroke(Theme.separator, lineWidth: 0.5)
+                                )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.vertical, Theme.spacingSM)
+            }
+        }
+        .sheet(isPresented: $showLegacyImportSheet) {
+            LegacyTenXImportSheet()
         }
         .task {
             await loadPaths()
