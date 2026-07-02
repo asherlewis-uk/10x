@@ -261,7 +261,7 @@ struct HomeView: View {
                                 HStack(spacing: 3) {
                                     Image(systemName: "arrow.down.circle")
                                         .font(.system(size: 11))
-                                    Text("10x")
+                                    Text("Legacy 10x")
                                         .font(.system(size: 10, weight: .medium))
                                 }
                                 .foregroundStyle(Theme.textTertiary)
@@ -273,6 +273,7 @@ struct HomeView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .help("Import projects from the original 10x app")
 
                             Spacer()
 

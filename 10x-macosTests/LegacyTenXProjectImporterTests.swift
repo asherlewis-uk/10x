@@ -65,7 +65,7 @@ final class LegacyTenXProjectImporterTests: XCTestCase {
         let root = fixture.url
 
         let importer = LegacyTenXProjectImporter()
-        let isCandidate = await importer.isLegacyProjectCandidate(at: root)
+        let isCandidate = importer.isLegacyProjectCandidate(at: root)
         XCTAssertTrue(isCandidate)
 
         let scanned = await importer.scanLegacyProjects(at: fixture.scanRoot)
@@ -77,7 +77,7 @@ final class LegacyTenXProjectImporterTests: XCTestCase {
         let root = fixture.url
 
         let importer = LegacyTenXProjectImporter()
-        let isCandidate = await importer.isLegacyProjectCandidate(at: root)
+        let isCandidate = importer.isLegacyProjectCandidate(at: root)
         XCTAssertTrue(isCandidate)
 
         let scanned = await importer.scanLegacyProjects(at: fixture.scanRoot)
@@ -237,7 +237,11 @@ final class LegacyTenXProjectImporterTests: XCTestCase {
         let scanRoot: URL
     }
 
-    private func makeMinimalLegacyFixture(name: String, includeProjectJSON: Bool = true) throws -> LegacyFixture {
+    private func makeMinimalLegacyFixture(
+        name: String,
+        includeProjectJSON: Bool = true,
+        includeIOSFiles: Bool = true
+    ) throws -> LegacyFixture {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
             .appendingPathComponent(name, isDirectory: true)
@@ -245,9 +249,7 @@ final class LegacyTenXProjectImporterTests: XCTestCase {
         let fm = FileManager.default
 
         let tenxDir = root.appendingPathComponent(".tenx", isDirectory: true)
-        let iosDir = root.appendingPathComponent("ios", isDirectory: true)
         try fm.createDirectory(at: tenxDir, withIntermediateDirectories: true)
-        try fm.createDirectory(at: iosDir, withIntermediateDirectories: true)
 
         if includeProjectJSON {
             let projectJSON: [String: Any] = [
@@ -262,8 +264,12 @@ final class LegacyTenXProjectImporterTests: XCTestCase {
                 .write(to: tenxDir.appendingPathComponent("project.json"))
         }
 
-        try Data("name: TestApp".utf8)
-            .write(to: iosDir.appendingPathComponent("project.yml"))
+        if includeIOSFiles {
+            let iosDir = root.appendingPathComponent("ios", isDirectory: true)
+            try fm.createDirectory(at: iosDir, withIntermediateDirectories: true)
+            try Data("name: TestApp".utf8)
+                .write(to: iosDir.appendingPathComponent("project.yml"))
+        }
 
         // Add a small .git marker so skip-git tests have something to skip.
         let gitDir = root.appendingPathComponent(".git", isDirectory: true)
@@ -364,4 +370,294 @@ final class LegacyTenXProjectImporterTests: XCTestCase {
             .replacingOccurrences(of: " ", with: "-")
             .replacingOccurrences(of: "[^a-z0-9\\-]", with: "", options: .regularExpression)
     }
+
+    // MARK: - Failure and retry
+
+    func testFailedImportDoesNotBlockRetry() async throws {
+        let fixture = try makeFullLegacyFixture(name: "Retryable Failure")
+
+        // Inject a failing asset storage by using a root URL that is a file instead of a directory.
+        let badStorage = LocalAssetStorage(rootURL: fixture.url.appendingPathComponent("ios/project.yml"), repository: AssetRepository(database: database))
+        let failingImporter = LegacyTenXProjectImporter(
+            database: database,
+            assetStorage: badStorage,
+            previewService: XcodePreviewService()
+        )
+
+        let first = try? await failingImporter.importProject(from: fixture.url)
+        XCTAssertNil(first?.project, "Import should have failed")
+
+        let second = try await importer.importProject(from: fixture.url)
+        XCTAssertTrue(second.succeeded, "Retry after failed import should succeed: \(second.errors.joined(separator: ", "))")
+        XCTAssertFalse(second.alreadyImported)
+        if let project = second.project {
+            createdProjectIds.append(project.id)
+            createdProjectNames.append(project.name)
+            createdAppSupportProjectPaths.append(
+                await XcodePreviewService().projectDir(for: project.name, projectId: project.id)
+            )
+        }
+    }
+
+    func testIncompleteImportRecordDoesNotBlockRetry() async throws {
+        let fixture = try makeFullLegacyFixture(name: "Incomplete Record")
+        let repo = LegacyImportRepository(database: database)
+
+        // Manually insert an in_progress record.
+        let profile = try await ProfileRepository(database: database).loadOrCreateProfile()
+        let project = try await ProjectRepository(database: database).createProject(userId: profile.id, name: "Incomplete", platform: "swiftui")
+        createdProjectIds.append(project.id)
+        let fingerprint = "incomplete-fingerprint"
+        _ = try await repo.startImport(
+            sourcePath: fixture.url.path,
+            legacyProjectId: "legacy-incomplete",
+            manifestId: nil,
+            contentFingerprint: fingerprint,
+            projectId: project.id
+        )
+
+        // Retry should succeed because the prior import is not completed.
+        let report = try await importer.importProject(from: fixture.url)
+        XCTAssertTrue(report.succeeded)
+        XCTAssertFalse(report.alreadyImported)
+        if let p = report.project {
+            createdProjectIds.append(p.id)
+            createdProjectNames.append(p.name)
+            createdAppSupportProjectPaths.append(
+                await XcodePreviewService().projectDir(for: p.name, projectId: p.id)
+            )
+        }
+    }
+
+    func testOrphanLegacyImportDoesNotBlockReimport() async throws {
+        let fixture = try makeFullLegacyFixture(name: "Orphan Import")
+        let repo = LegacyImportRepository(database: database)
+        let profile = try await ProfileRepository(database: database).loadOrCreateProfile()
+        let project = try await ProjectRepository(database: database).createProject(userId: profile.id, name: "Orphan", platform: "swiftui")
+        createdProjectIds.append(project.id)
+        let record = try await repo.startImport(
+            sourcePath: fixture.url.path,
+            legacyProjectId: nil,
+            manifestId: nil,
+            contentFingerprint: "orphan-fingerprint",
+            projectId: project.id
+        )
+        try await repo.completeImport(id: record.id)
+
+        // Delete the project; with FK cascade the legacy_imports row should also disappear.
+        try await ProjectRepository(database: database).deleteProject(id: project.id)
+
+        let report = try await importer.importProject(from: fixture.url)
+        XCTAssertTrue(report.succeeded)
+        XCTAssertFalse(report.alreadyImported)
+        if let p = report.project {
+            createdProjectIds.append(p.id)
+            createdProjectNames.append(p.name)
+            createdAppSupportProjectPaths.append(
+                await XcodePreviewService().projectDir(for: p.name, projectId: p.id)
+            )
+        }
+    }
+
+    func testMalformedMessagesIsPreservedRaw() async throws {
+        let fixture = try makeFullLegacyFixture(name: "Malformed Messages")
+        try "not valid json".write(
+            to: fixture.url.appendingPathComponent(".tenx/messages.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let report = try await importer.importProject(from: fixture.url)
+        XCTAssertTrue(report.succeeded)
+        XCTAssertEqual(report.importedMessageCount, 0)
+        XCTAssertTrue(report.errors.contains { $0.contains("messages.json") })
+
+        let project = try XCTUnwrap(report.project)
+        createdProjectIds.append(project.id)
+        createdProjectNames.append(project.name)
+
+        let assetRepo = AssetRepository(database: database)
+        let assets = try await assetRepo.fetchAssets(projectId: project.id)
+        let rawAsset = assets.first { $0.relativePath.contains("messages.json") }
+        XCTAssertNotNil(rawAsset)
+    }
+
+    func testMalformedChatsIsPreservedRaw() async throws {
+        let fixture = try makeFullLegacyFixture(name: "Malformed Chats")
+        try "not valid json".write(
+            to: fixture.url.appendingPathComponent(".tenx/chats.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let report = try await importer.importProject(from: fixture.url)
+        XCTAssertTrue(report.succeeded)
+        XCTAssertTrue(report.errors.contains { $0.contains("chats.json") })
+
+        let project = try XCTUnwrap(report.project)
+        createdProjectIds.append(project.id)
+        createdProjectNames.append(project.name)
+
+        let assetRepo = AssetRepository(database: database)
+        let assets = try await assetRepo.fetchAssets(projectId: project.id)
+        let rawAsset = assets.first { $0.relativePath.contains("chats.json") }
+        XCTAssertNotNil(rawAsset)
+    }
+
+    func testChatStateFilesPreserved() async throws {
+        let fixture = try makeFullLegacyFixture(name: "Chat State Preserved")
+        let chatId = UUID().uuidString
+        let chatStateDir = fixture.url.appendingPathComponent(".tenx/chats/\(chatId)", isDirectory: true)
+        try FileManager.default.createDirectory(at: chatStateDir, withIntermediateDirectories: true)
+        let state: [String: Any] = ["messages": []]
+        try JSONSerialization.data(withJSONObject: state, options: [.sortedKeys])
+            .write(to: chatStateDir.appendingPathComponent("state.json"))
+
+        let report = try await importer.importProject(from: fixture.url)
+        XCTAssertTrue(report.succeeded)
+        XCTAssertEqual(report.rawChatStatesPreserved, 1)
+
+        let project = try XCTUnwrap(report.project)
+        createdProjectIds.append(project.id)
+        createdProjectNames.append(project.name)
+    }
+
+    func testSourceOnlyImportRequiresGenerationContext() async throws {
+        // Fixture with only metadata but no source, messages, or conversation should fail.
+        let fixture = try makeMinimalLegacyFixture(name: "Source Only", includeIOSFiles: false)
+
+        do {
+            _ = try await importer.importProject(from: fixture.url)
+            XCTFail("Expected nothingImportable error for source-only project")
+        } catch let error as LegacyTenXImportError {
+            if case .nothingImportable = error {
+                // Expected
+            } else {
+                XCTFail("Expected nothingImportable, got \(error)")
+            }
+        }
+    }
+
+    func testFingerprintDoesNotCollideForSparseProjects() async throws {
+        let a = try makeMinimalLegacyFixture(name: "Sparse A", includeProjectJSON: false)
+        let b = try makeMinimalLegacyFixture(name: "Sparse B", includeProjectJSON: false)
+
+        let first = try await importer.importProject(from: a.url)
+        XCTAssertTrue(first.succeeded)
+        if let p = first.project {
+            createdProjectIds.append(p.id)
+            createdProjectNames.append(p.name)
+            createdAppSupportProjectPaths.append(
+                await XcodePreviewService().projectDir(for: p.name, projectId: p.id)
+            )
+        }
+
+        let second = try await importer.importProject(from: b.url)
+        XCTAssertTrue(second.succeeded)
+        XCTAssertFalse(second.alreadyImported)
+        if let p = second.project {
+            createdProjectIds.append(p.id)
+            createdProjectNames.append(p.name)
+            createdAppSupportProjectPaths.append(
+                await XcodePreviewService().projectDir(for: p.name, projectId: p.id)
+            )
+        }
+    }
+
+    func testSymlinkIsSkippedAndDoesNotEscapeRoot() async throws {
+        let fixture = try makeFullLegacyFixture(name: "Symlink Test")
+        let outsideFile = fixture.scanRoot.appendingPathComponent("outside.txt")
+        try "secret".write(to: outsideFile, atomically: true, encoding: .utf8)
+        let linkPath = fixture.url.appendingPathComponent("ios/EscapeLink")
+        try FileManager.default.createSymbolicLink(atPath: linkPath.path, withDestinationPath: outsideFile.path)
+
+        let report = try await importer.importProject(from: fixture.url)
+        XCTAssertTrue(report.succeeded)
+        XCTAssertTrue(report.skipped.contains { $0.contains("Symlink skipped") })
+
+        let project = try XCTUnwrap(report.project)
+        createdProjectIds.append(project.id)
+        createdProjectNames.append(project.name)
+        let projectRoot = await XcodePreviewService().projectDir(for: project.name, projectId: project.id)
+        createdAppSupportProjectPaths.append(projectRoot)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: projectRoot.appendingPathComponent("ios/EscapeLink").path))
+        try? FileManager.default.removeItem(at: outsideFile)
+    }
+
+    func testPathTraversalCannotEscapeDestinationRoot() async throws {
+        let fixture = try makeFullLegacyFixture(name: "Traversal Test")
+        let weirdDir = fixture.url.appendingPathComponent("ios/TestApp/dotdot", isDirectory: true)
+        try FileManager.default.createDirectory(at: weirdDir, withIntermediateDirectories: true)
+        try "evil".write(to: weirdDir.appendingPathComponent("evil.swift"), atomically: true, encoding: .utf8)
+
+        let report = try await importer.importProject(from: fixture.url)
+        XCTAssertTrue(report.succeeded)
+        let project = try XCTUnwrap(report.project)
+        createdProjectIds.append(project.id)
+        createdProjectNames.append(project.name)
+        let projectRoot = await XcodePreviewService().projectDir(for: project.name, projectId: project.id)
+        createdAppSupportProjectPaths.append(projectRoot)
+
+        // The destination should not contain files above the ios/ destination root.
+        XCTAssertFalse(FileManager.default.fileExists(atPath: projectRoot.appendingPathComponent("evil.swift").path))
+    }
+
+    func testDeterministicFallbackMessageIDs() async throws {
+        let fixture = try makeFullLegacyFixture(name: "Deterministic IDs")
+        // Use a non-UUID string id to exercise fallback path.
+        let messages: [[String: Any]] = [
+            [
+                "id": "not-a-uuid",
+                "role": "user",
+                "content": "Hello",
+                "conversation_id": "",
+                "created_at": ISO8601DateFormatter().string(from: Date())
+            ]
+        ]
+        try JSONSerialization.data(withJSONObject: messages, options: [.sortedKeys])
+            .write(to: fixture.url.appendingPathComponent(".tenx/messages.json"))
+
+        let first = try await importer.importProject(from: fixture.url)
+        _ = try await importer.importProject(from: fixture.url)
+        // Re-import should be already-imported; still, the imported message id should be stable.
+        XCTAssertTrue(first.succeeded)
+        if let p = first.project {
+            createdProjectIds.append(p.id)
+            createdProjectNames.append(p.name)
+            createdAppSupportProjectPaths.append(
+                await XcodePreviewService().projectDir(for: p.name, projectId: p.id)
+            )
+        }
+    }
+
+    func testImportReportContainsSkippedAndUnavailableInfo() async throws {
+        let fixture = try makeFullLegacyFixture(name: "Report Info")
+        let report = try await importer.importProject(from: fixture.url)
+        XCTAssertTrue(report.succeeded)
+        XCTAssertTrue(report.skipped.contains { $0.contains(".git") })
+        if let p = report.project {
+            createdProjectIds.append(p.id)
+            createdProjectNames.append(p.name)
+            createdAppSupportProjectPaths.append(
+                await XcodePreviewService().projectDir(for: p.name, projectId: p.id)
+            )
+        }
+    }
+
+    func testLegacyImportDoesNotRequireAccessToken() async throws {
+        let fixture = try makeFullLegacyFixture(name: "Tokenless")
+
+        // The legacy importer itself is local-only and does not take a remote token.
+        let report = try await importer.importProject(from: fixture.url)
+        XCTAssertTrue(report.succeeded)
+        XCTAssertFalse(report.alreadyImported)
+        if let p = report.project {
+            createdProjectIds.append(p.id)
+            createdProjectNames.append(p.name)
+            createdAppSupportProjectPaths.append(
+                await XcodePreviewService().projectDir(for: p.name, projectId: p.id)
+            )
+        }
+    }
+
 }

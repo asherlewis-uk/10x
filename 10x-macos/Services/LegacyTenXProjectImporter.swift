@@ -15,6 +15,8 @@ actor LegacyTenXProjectImporter {
     private let assetStorage: LocalAssetStorage
     private let previewService: XcodePreviewService
 
+    private let fileManager = FileManager.default
+
     init(
         database: CockpitDatabase = CockpitDatabase.shared,
         projectRepository: ProjectRepository? = nil,
@@ -38,7 +40,6 @@ actor LegacyTenXProjectImporter {
     // MARK: - Discovery
 
     func scanLegacyProjects(at rootURL: URL = defaultLegacyRoot) async -> [URL] {
-        let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: rootURL.path) else { return [] }
 
         guard let urls = try? fileManager.contentsOfDirectory(
@@ -72,7 +73,6 @@ actor LegacyTenXProjectImporter {
         from sourceURL: URL,
         preserveGitHistory: Bool = false
     ) async throws -> LegacyTenXImportReport {
-        let fileManager = FileManager.default
         let source = sourceURL.standardizedFileURL
 
         guard fileManager.fileExists(atPath: source.path) else {
@@ -94,7 +94,7 @@ actor LegacyTenXProjectImporter {
         let manifestId = manifestJSON.flatMap { $0.projectId ?? $0.bundleIdentifier }
         let fingerprint = try contentFingerprint(at: source)
 
-        if let existing = try await legacyImportRepository.findImport(
+        if let existing = try await legacyImportRepository.findCompletedImport(
             sourcePath: source.path,
             legacyProjectId: legacyProjectId,
             contentFingerprint: fingerprint
@@ -122,9 +122,11 @@ actor LegacyTenXProjectImporter {
 
         guard fileManager.fileExists(atPath: source.appendingPathComponent("ios").path)
             || fileManager.fileExists(atPath: source.appendingPathComponent(".tenx/file_tree.json").path)
+            || fileManager.fileExists(atPath: source.appendingPathComponent(".tenx/messages.json").path)
+            || fileManager.fileExists(atPath: source.appendingPathComponent("conversation.md").path)
         else {
             throw LegacyTenXImportError.nothingImportable(
-                "This legacy project has no importable source files or file tree."
+                "This legacy project has no importable source files, file tree, messages, or conversation."
             )
         }
 
@@ -162,7 +164,7 @@ actor LegacyTenXProjectImporter {
             settings: settings
         )
 
-        _ = try await legacyImportRepository.recordImport(
+        let importRecord = try await legacyImportRepository.startImport(
             sourcePath: source.path,
             legacyProjectId: legacyProjectId,
             manifestId: manifestId,
@@ -172,125 +174,153 @@ actor LegacyTenXProjectImporter {
 
         let projectRoot = await previewService.projectDir(for: project.name, projectId: project.id)
 
-        // Copy generated iOS source files.
-        let sourceIOS = source.appendingPathComponent("ios", isDirectory: true)
-        let destIOS = projectRoot.appendingPathComponent("ios", isDirectory: true)
-        if fileManager.fileExists(atPath: sourceIOS.path) {
-            let copied = try copyDirectoryTree(
-                from: sourceIOS,
-                to: destIOS,
-                skipGit: !preserveGitHistory
+        do {
+            // Copy generated iOS source files.
+            let sourceIOS = source.appendingPathComponent("ios", isDirectory: true)
+            let destIOS = projectRoot.appendingPathComponent("ios", isDirectory: true)
+            if fileManager.fileExists(atPath: sourceIOS.path) {
+                let copyResult = try copyDirectoryTree(
+                    from: sourceIOS,
+                    to: destIOS,
+                    skipGit: !preserveGitHistory
+                )
+                report.copiedSourceFiles = copyResult.copied.sorted()
+                for link in copyResult.skippedSymlinks {
+                    report.skipped.append("Symlink skipped: \(link)")
+                }
+            } else {
+                report.unavailable.append("ios/ directory")
+            }
+
+            // Import file tree into LocalProjectStore and create a version.
+            let fileTreeURL = source.appendingPathComponent(".tenx/file_tree.json")
+            var fileTree: [String: String] = [:]
+            if let data = try? Data(contentsOf: fileTreeURL),
+               let decoded = try? JSONDecoder().decode([String: String].self, from: data) {
+                fileTree = decoded
+                await localStore.saveFileTree(fileTree, projectName: project.name, projectId: project.id)
+            } else {
+                report.unavailable.append(".tenx/file_tree.json")
+            }
+
+            // Import messages / chat state.
+            let (messages, chat) = try importChatState(
+                from: source,
+                project: project,
+                report: &report
             )
-            report.copiedSourceFiles = copied.sorted()
-        } else {
-            report.unavailable.append("ios/ directory")
+            let chatId = chat.id
+
+            if !messages.isEmpty {
+                let chatState = BuilderChatState(
+                    messages: messages,
+                    plan: nil,
+                    tasks: nil,
+                    warnings: [],
+                    snapshots: [],
+                    cachedReadFiles: [:],
+                    cachedReadFileOrder: [],
+                    contextState: .empty,
+                    timeline: messages.map { .message(messageId: $0.id) }
+                )
+                await localStore.saveChatState(
+                    chatState,
+                    chat: chat,
+                    projectName: project.name,
+                    projectId: project.id,
+                    projectDir: projectRoot
+                )
+                await localStore.saveChatIndex(
+                    BuilderChatIndex(chats: [chat], activeChatId: chat.id),
+                    projectName: project.name,
+                    projectId: project.id
+                )
+                await localStore.saveMessages(
+                    messages,
+                    projectName: project.name,
+                    projectId: project.id,
+                    projectDir: projectRoot
+                )
+                report.importedMessageCount = messages.count
+            }
+
+            // Import plan / tasks.
+            let planURL = source.appendingPathComponent(".tenx/plan.md")
+            let tasksURL = source.appendingPathComponent(".tenx/tasks.md")
+            let plan = try? String(contentsOf: planURL, encoding: .utf8)
+            let tasks = try? String(contentsOf: tasksURL, encoding: .utf8)
+            let status = BuilderProjectStatusState(plan: plan, tasks: tasks)
+            await localStore.saveProjectStatus(status, projectName: project.name, projectId: project.id, projectDir: projectRoot)
+            report.importedPlan = !(plan?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+            report.importedTasks = !(tasks?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+
+            // Create a version if we have a file tree.
+            if !fileTree.isEmpty {
+                let prompt = messages.first(where: { $0.role == "user" })?.content
+                    ?? projectJSON?.name
+                    ?? manifestJSON?.name
+                    ?? "Imported legacy 10x project"
+                _ = try await versionRepository.createVersion(
+                    projectId: project.id,
+                    conversationId: chatId,
+                    fileTree: fileTree,
+                    prompt: prompt
+                )
+            }
+
+            // Copy legacy docs / marketing artifacts as inert assets.
+            let docPaths: [(URL, [String])] = [
+                (source.appendingPathComponent("README.md"), ["legacy-docs"]),
+                (source.appendingPathComponent("PRODUCTION.md"), ["legacy-docs"]),
+                (source.appendingPathComponent("conversation.md"), ["legacy-docs"]),
+                (source.appendingPathComponent(".tenx/project.json"), ["legacy-docs", "tenx"]),
+                (source.appendingPathComponent(".tenx/manifest.json"), ["legacy-docs", "tenx"]),
+                (source.appendingPathComponent("ios/.tenx-source-manifest.json"), ["legacy-docs", "tenx"]),
+                (source.appendingPathComponent("ios/project.yml"), ["legacy-docs", "tenx"]),
+                (source.appendingPathComponent(".tenx/plan.md"), ["legacy-docs", "tenx"]),
+                (source.appendingPathComponent(".tenx/tasks.md"), ["legacy-docs", "tenx"]),
+                (source.appendingPathComponent(".tenx/messages.json"), ["legacy-docs", "tenx"]),
+                (source.appendingPathComponent(".tenx/chats.json"), ["legacy-docs", "tenx"]),
+                (source.appendingPathComponent(".tenx/chats"), ["legacy-docs", "tenx", "chats"]),
+                (source.appendingPathComponent("idea"), ["legacy-docs", "idea"]),
+                (source.appendingPathComponent("release"), ["legacy-docs", "release"]),
+                (source.appendingPathComponent("growth/app-store"), ["legacy-docs", "growth", "app-store"]),
+            ]
+
+            for (url, subdirectories) in docPaths {
+                let copied = try await copyAsAssets(
+                    from: url,
+                    into: project.id,
+                    subdirectories: subdirectories,
+                    skipGit: !preserveGitHistory
+                )
+                report.copiedAssetFiles.append(contentsOf: copied)
+                if url.lastPathComponent == "conversation.md", !copied.isEmpty {
+                    report.conversationTranscriptAttached = true
+                }
+                if url.lastPathComponent == "messages.json", !copied.isEmpty {
+                    report.rawMessagesPreserved = true
+                }
+                if url.lastPathComponent == "chats.json", !copied.isEmpty {
+                    report.rawChatsPreserved = true
+                }
+                if url.lastPathComponent == "chats", !copied.isEmpty {
+                    report.rawChatStatesPreserved = copied.count
+                }
+            }
+
+            report.project = project
+            report.skipped.append(".git/ directory (default)")
+
+            try await legacyImportRepository.completeImport(id: importRecord.id)
+            return report
+        } catch {
+            try? await legacyImportRepository.failImport(id: importRecord.id, errorMessage: error.localizedDescription)
+            // Remove the partial project directory where safe. Keep project/DB row so
+            // the failure is visible and retryable via the failed import record.
+            try? fileManager.removeItem(at: projectRoot)
+            throw error
         }
-
-        // Import file tree into LocalProjectStore and create a version.
-        let fileTreeURL = source.appendingPathComponent(".tenx/file_tree.json")
-        var fileTree: [String: String] = [:]
-        if let data = try? Data(contentsOf: fileTreeURL),
-           let decoded = try? JSONDecoder().decode([String: String].self, from: data) {
-            fileTree = decoded
-            await localStore.saveFileTree(fileTree, projectName: project.name, projectId: project.id)
-        } else {
-            report.unavailable.append(".tenx/file_tree.json")
-        }
-
-        // Import messages / chat state.
-        let (messages, chat) = try importChatState(
-            from: source,
-            project: project,
-            report: &report
-        )
-        let chatId = chat.id
-
-        if !messages.isEmpty {
-            let chatState = BuilderChatState(
-                messages: messages,
-                plan: nil,
-                tasks: nil,
-                warnings: [],
-                snapshots: [],
-                cachedReadFiles: [:],
-                cachedReadFileOrder: [],
-                contextState: .empty,
-                timeline: messages.map { .message(messageId: $0.id) }
-            )
-            await localStore.saveChatState(
-                chatState,
-                chat: chat,
-                projectName: project.name,
-                projectId: project.id,
-                projectDir: projectRoot
-            )
-            await localStore.saveChatIndex(
-                BuilderChatIndex(chats: [chat], activeChatId: chat.id),
-                projectName: project.name,
-                projectId: project.id
-            )
-            await localStore.saveMessages(
-                messages,
-                projectName: project.name,
-                projectId: project.id,
-                projectDir: projectRoot
-            )
-            report.importedMessageCount = messages.count
-        }
-
-        // Import plan / tasks.
-        let planURL = source.appendingPathComponent(".tenx/plan.md")
-        let tasksURL = source.appendingPathComponent(".tenx/tasks.md")
-        let plan = try? String(contentsOf: planURL, encoding: .utf8)
-        let tasks = try? String(contentsOf: tasksURL, encoding: .utf8)
-        let status = BuilderProjectStatusState(plan: plan, tasks: tasks)
-        await localStore.saveProjectStatus(status, projectName: project.name, projectId: project.id, projectDir: projectRoot)
-        report.importedPlan = !(plan?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-        report.importedTasks = !(tasks?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-
-        // Create a version if we have a file tree.
-        if !fileTree.isEmpty {
-            let prompt = messages.first(where: { $0.role == "user" })?.content
-                ?? projectJSON?.name
-                ?? manifestJSON?.name
-                ?? "Imported legacy 10x project"
-            _ = try await versionRepository.createVersion(
-                projectId: project.id,
-                conversationId: chatId,
-                fileTree: fileTree,
-                prompt: prompt
-            )
-        }
-
-        // Copy legacy docs / marketing artifacts as inert assets.
-        let docPaths: [(URL, [String])] = [
-            (source.appendingPathComponent("README.md"), ["legacy-docs"]),
-            (source.appendingPathComponent("PRODUCTION.md"), ["legacy-docs"]),
-            (source.appendingPathComponent("conversation.md"), ["legacy-docs"]),
-            (source.appendingPathComponent(".tenx/project.json"), ["legacy-docs", "tenx"]),
-            (source.appendingPathComponent(".tenx/manifest.json"), ["legacy-docs", "tenx"]),
-            (source.appendingPathComponent("ios/.tenx-source-manifest.json"), ["legacy-docs", "tenx"]),
-            (source.appendingPathComponent("ios/project.yml"), ["legacy-docs", "tenx"]),
-            (source.appendingPathComponent(".tenx/plan.md"), ["legacy-docs", "tenx"]),
-            (source.appendingPathComponent(".tenx/tasks.md"), ["legacy-docs", "tenx"]),
-            (source.appendingPathComponent("idea"), ["legacy-docs", "idea"]),
-            (source.appendingPathComponent("release"), ["legacy-docs", "release"]),
-            (source.appendingPathComponent("growth"), ["legacy-docs", "growth"]),
-        ]
-
-        for (url, subdirectories) in docPaths {
-            let copied = try await copyAsAssets(
-                from: url,
-                into: project.id,
-                subdirectories: subdirectories,
-                skipGit: !preserveGitHistory
-            )
-            report.copiedAssetFiles.append(contentsOf: copied)
-        }
-
-        report.project = project
-        report.skipped.append(".git/ directory (default)")
-        return report
     }
 
     // MARK: - Chat import
@@ -301,16 +331,41 @@ actor LegacyTenXProjectImporter {
         report: inout LegacyTenXImportReport
     ) throws -> ([BuilderMessage], BuilderChat) {
         let messagesURL = source.appendingPathComponent(".tenx/messages.json")
-        guard let data = try? Data(contentsOf: messagesURL),
-              let legacyMessages = try? JSONDecoder().decode([LegacyMessage].self, from: data),
-              !legacyMessages.isEmpty else {
+        let chatsURL = source.appendingPathComponent(".tenx/chats.json")
+        let chatsDir = source.appendingPathComponent(".tenx/chats", isDirectory: true)
+
+        var legacyMessages: [LegacyMessage] = []
+        var messagesParseFailed = false
+        if let data = try? Data(contentsOf: messagesURL) {
+            if let decoded = try? JSONDecoder().decode([LegacyMessage].self, from: data), !decoded.isEmpty {
+                legacyMessages = decoded
+                report.rawMessagesPreserved = true
+            } else {
+                messagesParseFailed = true
+                report.unavailable.append(".tenx/messages.json (malformed but will be preserved as raw asset)")
+            }
+        } else {
             report.unavailable.append(".tenx/messages.json")
-            let chat = makeImportedChat(named: "Imported Chat")
-            return ([], chat)
         }
 
-        let chatsURL = source.appendingPathComponent(".tenx/chats.json")
-        let legacyChatIndex: LegacyChatIndex? = try? loadJSON(LegacyChatIndex.self, from: chatsURL)
+        var legacyChatIndex: LegacyChatIndex? = nil
+        var chatsParseFailed = false
+        if let data = try? Data(contentsOf: chatsURL) {
+            if let decoded = try? JSONDecoder().decode(LegacyChatIndex.self, from: data) {
+                legacyChatIndex = decoded
+                report.rawChatsPreserved = true
+            } else {
+                chatsParseFailed = true
+                report.unavailable.append(".tenx/chats.json (malformed but will be preserved as raw asset)")
+            }
+        } else {
+            report.unavailable.append(".tenx/chats.json")
+        }
+
+        if fileManager.fileExists(atPath: chatsDir.path) {
+            report.rawChatStatesPreserved = Self.countRegularFiles(at: chatsDir)
+        }
+
         let chatId = legacyChatIndex?.activeChatId
             ?? legacyMessages.first(where: { !$0.conversation_id.isEmpty })?.conversation_id
             ?? UUID().uuidString
@@ -323,6 +378,19 @@ actor LegacyTenXProjectImporter {
             name: chatName,
             isAutoNamed: true
         )
+
+        if messagesParseFailed {
+            report.rawMessagesPreserved = true
+            report.errors.append("Could not parse .tenx/messages.json as structured chat; preserved raw file instead.")
+        }
+        if chatsParseFailed {
+            report.rawChatsPreserved = true
+            report.errors.append("Could not parse .tenx/chats.json as structured chat index; preserved raw file instead.")
+        }
+
+        guard !legacyMessages.isEmpty else {
+            return ([], chat)
+        }
 
         let messages: [BuilderMessage] = legacyMessages.map { legacy in
             BuilderMessage(
@@ -342,6 +410,18 @@ actor LegacyTenXProjectImporter {
         return (messages, chat)
     }
 
+    private static func countRegularFiles(at url: URL) -> Int {
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles])
+        else { return 0 }
+        var count = 0
+        while let item = enumerator.nextObject() as? URL {
+            let isRegular = (try? item.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? false
+            if isRegular { count += 1 }
+        }
+        return count
+    }
+
     private func makeImportedChat(named: String) -> BuilderChat {
         BuilderChat(id: UUID().uuidString, name: named, isAutoNamed: true)
     }
@@ -354,21 +434,24 @@ actor LegacyTenXProjectImporter {
         from sourceDir: URL,
         to destDir: URL,
         skipGit: Bool
-    ) throws -> [String] {
-        let fileManager = FileManager.default
+    ) throws -> (copied: [String], skippedSymlinks: [String]) {
+        let sourceRoot = sourceDir.standardizedFileURL
+        let destRoot = destDir.standardizedFileURL
+
         guard let enumerator = fileManager.enumerator(
-            at: sourceDir,
-            includingPropertiesForKeys: [.isDirectoryKey],
+            at: sourceRoot,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
             options: [.skipsHiddenFiles]
         ) else {
-            return []
+            return (copied: [], skippedSymlinks: [])
         }
 
         var copied: [String] = []
+        var skippedSymlinks: [String] = []
 
         while let item = enumerator.nextObject() {
             guard let fileURL = item as? URL else { continue }
-            let relativePath = Self.relativePath(of: fileURL, relativeTo: sourceDir)
+            let relativePath = Self.relativePath(of: fileURL, relativeTo: sourceRoot)
             let components = relativePath.split(separator: "/").map(String.init)
 
             if skipGit, components.contains(".git") {
@@ -382,8 +465,22 @@ actor LegacyTenXProjectImporter {
                 continue
             }
 
-            let destURL = destDir.appendingPathComponent(relativePath)
-            let isDirectory = (try? fileURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            let values = try? fileURL.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey])
+            if values?.isSymbolicLink == true {
+                skippedSymlinks.append(relativePath)
+                continue
+            }
+
+            guard let destURL = Self.safeDestinationURL(
+                root: destRoot,
+                relativePath: relativePath
+            ) else {
+                throw LegacyTenXImportError.invalidPath(
+                    "Destination path escapes import root: \(relativePath)"
+                )
+            }
+
+            let isDirectory = values?.isDirectory == true
 
             if isDirectory {
                 try fileManager.createDirectory(at: destURL, withIntermediateDirectories: true)
@@ -400,7 +497,24 @@ actor LegacyTenXProjectImporter {
             }
         }
 
-        return copied
+        return (copied, skippedSymlinks)
+    }
+
+    private nonisolated static func safeDestinationURL(root: URL, relativePath: String) -> URL? {
+        let normalized = (relativePath as NSString).standardizingPath
+        guard !normalized.hasPrefix("/"),
+              !normalized.hasPrefix("~"),
+              !normalized.contains("/.."),
+              !normalized.contains("/../") else {
+            return nil
+        }
+        let destination = root.appendingPathComponent(normalized, isDirectory: false).standardizedFileURL
+        let rootPath = root.path
+        let destPath = destination.path
+        guard destPath.hasPrefix(rootPath + "/") || destPath == rootPath else {
+            return nil
+        }
+        return destination
     }
 
     /// Copies a single file or all files under a directory into assets storage.
@@ -410,7 +524,6 @@ actor LegacyTenXProjectImporter {
         subdirectories: [String],
         skipGit: Bool
     ) async throws -> [String] {
-        let fileManager = FileManager.default
         var copied: [String] = []
 
         if !fileManager.fileExists(atPath: sourceURL.path) {
@@ -424,7 +537,7 @@ actor LegacyTenXProjectImporter {
         if isDirectory.boolValue {
             guard let enumerator = fileManager.enumerator(
                 at: sourceURL,
-                includingPropertiesForKeys: [.isDirectoryKey],
+                includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
                 options: [.skipsHiddenFiles]
             ) else { return copied }
 
@@ -440,7 +553,9 @@ actor LegacyTenXProjectImporter {
                 }
                 if components.last == ".DS_Store" { continue }
 
-                guard (try? fileURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) != true else { continue }
+                let values = try? fileURL.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                if values?.isSymbolicLink == true { continue }
+                guard values?.isDirectory != true else { continue }
                 let data = try Data(contentsOf: fileURL)
                 let assetRelative = try await writeAsset(
                     projectId: projectId,
@@ -486,11 +601,14 @@ actor LegacyTenXProjectImporter {
 
     private func contentFingerprint(at source: URL) throws -> String {
         var hasher = SHA256()
+        hasher.update(data: Data(source.standardizedFileURL.path.utf8))
         let files = [
             source.appendingPathComponent(".tenx/project.json"),
+            source.appendingPathComponent(".tenx/manifest.json"),
             source.appendingPathComponent("ios/.tenx-source-manifest.json"),
             source.appendingPathComponent("ios/project.yml"),
-            source.appendingPathComponent(".tenx/manifest.json"),
+            source.appendingPathComponent("conversation.md"),
+            source.appendingPathComponent("README.md"),
         ]
         for file in files {
             if let data = try? Data(contentsOf: file) {
@@ -557,7 +675,18 @@ actor LegacyTenXProjectImporter {
         if UUID(uuidString: trimmed) != nil {
             return trimmed
         }
-        return UUID().uuidString
+        let digest = SHA256.hash(data: Data(fallbackSeed.utf8))
+        let hex = digest.map { String(format: "%02x", $0) }.joined()
+        let prefix = String(hex.prefix(32))
+        var uuidString = prefix
+        // Insert UUID separators: 8-4-4-4-12
+        if uuidString.count == 32 {
+            uuidString.insert("-", at: uuidString.index(uuidString.startIndex, offsetBy: 8))
+            uuidString.insert("-", at: uuidString.index(uuidString.startIndex, offsetBy: 13))
+            uuidString.insert("-", at: uuidString.index(uuidString.startIndex, offsetBy: 18))
+            uuidString.insert("-", at: uuidString.index(uuidString.startIndex, offsetBy: 23))
+        }
+        return uuidString
     }
 
     private static func isoTimestamp() -> String {

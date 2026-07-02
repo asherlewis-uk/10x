@@ -314,6 +314,11 @@ extension BuilderViewModel {
         }
     }
 
+    /// Local-only selection that does not require a remote access token.
+    func selectProject(_ project: BuilderProject) {
+        selectProject(project, accessToken: "")
+    }
+
     func selectVersion(_ version: BuilderVersion) {
         activeVersion = version
         fileTree = version.fileTree

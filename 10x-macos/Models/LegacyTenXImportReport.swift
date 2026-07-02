@@ -10,6 +10,10 @@ struct LegacyTenXImportReport: Sendable {
     var importedMessageCount: Int = 0
     var importedPlan: Bool = false
     var importedTasks: Bool = false
+    var rawMessagesPreserved: Bool = false
+    var rawChatsPreserved: Bool = false
+    var rawChatStatesPreserved: Int = 0
+    var conversationTranscriptAttached: Bool = false
     var unavailable: [String] = []
     var skipped: [String] = []
     var errors: [String] = []
@@ -22,6 +26,7 @@ enum LegacyTenXImportError: LocalizedError {
     case nothingImportable(String)
     case copyFailed(String)
     case duplicateImport(String)
+    case invalidPath(String)
 
     var errorDescription: String? {
         switch self {
@@ -32,6 +37,8 @@ enum LegacyTenXImportError: LocalizedError {
         case .copyFailed(let message):
             return message
         case .duplicateImport(let message):
+            return message
+        case .invalidPath(let message):
             return message
         }
     }

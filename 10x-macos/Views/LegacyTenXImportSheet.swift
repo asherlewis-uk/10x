@@ -142,7 +142,8 @@ struct LegacyTenXImportSheet: View {
             await MainActor.run {
                 isImporting.remove(url.path)
                 if report.succeeded, !report.alreadyImported {
-                    dismiss()
+                    reportForSheet = report
+                    showReport = true
                 } else if !report.errors.isEmpty {
                     errorMessage = report.errors.joined(separator: "\n")
                     showErrorAlert = true
@@ -186,6 +187,18 @@ private struct LegacyTenXImportReportView: View {
                         Text("Copied source files: \(report.copiedSourceFiles.count)")
                         Text("Copied assets/docs: \(report.copiedAssetFiles.count)")
                         Text("Imported messages: \(report.importedMessageCount)")
+                        if report.rawMessagesPreserved {
+                            Text("Raw messages.json preserved")
+                        }
+                        if report.rawChatsPreserved {
+                            Text("Raw chats.json preserved")
+                        }
+                        if report.rawChatStatesPreserved > 0 {
+                            Text("Raw chat state files preserved: \(report.rawChatStatesPreserved)")
+                        }
+                        if report.conversationTranscriptAttached {
+                            Text("Conversation transcript attached")
+                        }
                         Text("Imported plan: \(report.importedPlan ? "Yes" : "No")")
                         Text("Imported tasks: \(report.importedTasks ? "Yes" : "No")")
                     }
@@ -197,6 +210,17 @@ private struct LegacyTenXImportReportView: View {
                             .font(Theme.geist(12, weight: .semibold))
                             .padding(.top, Theme.spacingXS)
                         ForEach(report.unavailable, id: \.self) { item in
+                            Text("• \(item)")
+                                .font(Theme.geist(11))
+                                .foregroundStyle(Theme.textTertiary)
+                        }
+                    }
+
+                    if !report.skipped.isEmpty {
+                        Text("Skipped")
+                            .font(Theme.geist(12, weight: .semibold))
+                            .padding(.top, Theme.spacingXS)
+                        ForEach(report.skipped, id: \.self) { item in
                             Text("• \(item)")
                                 .font(Theme.geist(11))
                                 .foregroundStyle(Theme.textTertiary)

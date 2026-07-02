@@ -239,3 +239,58 @@ Commit message:
 ```
 feat(import): add legacy 10x local project import
 ```
+
+
+## Review-Fix Pass (commit fb6e758 → fix)
+
+### Review verdict before fixes
+BLOCK. The commit built, tests passed, and the forbidden audit was clean, but two P0 issues made it unsafe to push:
+1. The `legacy_imports` duplicate-tracking row was committed before file copy, message import, version creation, and plan/task import completed, so a mid-import failure could permanently block retry.
+2. Raw generation-context files (`.tenx/messages.json`, `.tenx/chats.json`, `.tenx/chats/*/state.json`, `conversation.md`) were not preserved as inert assets when structured JSON parsing failed, making the importer source-only for the most important legacy context.
+
+Several P1 issues (FK cleanup, fingerprint collision, symlink/path-traversal safety, deterministic message IDs) and P2 UI issues were also present.
+
+### P0 fixes implemented
+- **Import status lifecycle:** added `status` (`in_progress`/`completed`/`failed`) plus `started_at`, `completed_at`, and `error_message` to `legacy_imports`. The row is inserted at the start of the import, but `findCompletedImport` only treats `status = 'completed'` as blocking. On failure the record is marked `failed`, the partial 11x project directory is removed, and a retry is allowed.
+- **Raw generation context preservation:** `.tenx/messages.json`, `.tenx/chats.json`, the `.tenx/chats/<id>/state.json` tree, and `conversation.md` are always copied as inert assets. If structured decoding fails, the raw files are still preserved and the report records `rawMessagesPreserved`, `rawChatsPreserved`, `rawChatStatesPreserved`, `conversationTranscriptAttached`, plus explicit errors such as "Could not parse .tenx/messages.json as structured chat; preserved raw file instead."
+
+### P1 fixes implemented
+- **FK cascade / orphan safety:** `legacy_imports.project_id` now has `FOREIGN KEY ... REFERENCES projects(id) ON DELETE CASCADE`. `findCompletedImport` also verifies the referenced 11x project still exists, so deleting a project does not leave a stale duplicate record.
+- **Fingerprint collision resistance:** `contentFingerprint` now hashes the standardized source path in addition to `.tenx/project.json`, `.tenx/manifest.json`, `ios/.tenx-source-manifest.json`, `ios/project.yml`, `conversation.md`, and `README.md`. Exact source path and legacy project ID are checked before fingerprint.
+- **Path/symlink safety:** `copyDirectoryTree` skips symbolic links (recording them in the import report) and validates every destination path stays under the destination root. `copyAsAssets` also skips symlinks.
+- **Deterministic fallback message IDs:** non-UUID legacy message IDs now derive a stable UUID-shaped identifier from a SHA-256 hash of the supplied fallback seed, so repeated imports of the same legacy message produce the same ID.
+
+### P2 fixes implemented
+- **`growth/` scope:** only `growth/app-store/` is imported, as inert `legacy-docs/growth/app-store/` assets. The rest of `growth/` is no longer copied wholesale. No App Store submission automation is invoked.
+- **Report visibility:** successful imports now present the `LegacyTenXImportReportView` sheet. The view lists copied counts, imported messages, plan/tasks status, unavailable items, skipped items (including `.git/` and symlinks), and errors (including malformed-but-preserved files).
+- **Local-only wrapper:** `importAndSelectLegacyProject` no longer passes a remote `accessToken`. A local-only `selectProject(_ project: BuilderProject)` overload was added to `BuilderViewModel+Projects.swift`.
+- **Home button label:** the legacy import button is now labeled **"Legacy 10x"** with a help tooltip, avoiding ambiguity next to the SwiftUI project import button.
+
+### Tests added or updated
+- `testFailedImportDoesNotBlockRetry`
+- `testIncompleteImportRecordDoesNotBlockRetry`
+- `testOrphanLegacyImportDoesNotBlockReimport`
+- `testMalformedMessagesIsPreservedRaw`
+- `testMalformedChatsIsPreservedRaw`
+- `testChatStateFilesPreserved`
+- `testSourceOnlyImportRequiresGenerationContext`
+- `testSymlinkIsSkippedAndDoesNotEscapeRoot`
+- `testPathTraversalCannotEscapeDestinationRoot`
+- `testDeterministicFallbackMessageIDs`
+- `testFingerprintDoesNotCollideForSparseProjects`
+- `testImportReportContainsSkippedAndUnavailableInfo`
+- `testLegacyImportDoesNotRequireAccessToken`
+- Existing happy-path tests for copy semantics, git skip, generated iOS files, messages/history, plan/tasks, growth inertness, and duplicate prevention remain in place.
+
+### Verification results (after fixes)
+- `git diff --check`: clean
+- `xcrun swift test --filter LegacyTenXProjectImporterTests`: 24 passed, 0 failed
+- `xcrun swift test`: 267 passed, 0 failed
+- `./scripts/forbidden-audit`: passed
+- `./scripts/build-lanes/verify-unsigned.sh`: BUILD SUCCEEDED
+- `node .gitnexus/run.cjs detect_changes -r 10x`: 16 files changed, 7 symbols, 0 affected processes, **low risk**
+
+### Remaining known limitations
+- Import is not a single SQLite transaction: the `legacy_imports` row is created before filesystem copies because `LocalAssetStorage` writes happen on a different actor/database path. Failed imports remove the partial directory and mark the record `failed`; retries are allowed.
+- Per-chat `.tenx/chats/<id>/state.json` files are preserved raw and counted, but their internal structure is not mapped into 11x chat state beyond the count.
+- Legacy attachment paths in `messages.json` are not resolved; only message text/role/mode is imported.

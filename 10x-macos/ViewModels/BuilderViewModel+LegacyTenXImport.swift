@@ -25,10 +25,11 @@ extension BuilderViewModel {
     }
 
     /// Import a legacy 10x project by URL and then select it in the UI.
-    func importAndSelectLegacyProject(from sourceURL: URL, accessToken: String) async -> LegacyTenXImportReport {
+    func importAndSelectLegacyProject(from sourceURL: URL) async -> LegacyTenXImportReport {
         let report = await importLegacyProject(from: sourceURL)
         if let project = report.project, !report.alreadyImported {
-            selectProject(project, accessToken: accessToken)
+            // Legacy import is local-only and does not require a remote access token.
+            selectProject(project)
         }
         return report
     }
